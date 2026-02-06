@@ -1,4 +1,4 @@
-import { BaseRecord, LocationRecord } from "../common/types.js";
+import { BaseRecord, LocationRecord, ServiceDefinition } from "../common/types.js";
 import { createCache } from "../common/cache.js";
 import { createLogger } from "../common/logger.js";
 
@@ -153,4 +153,10 @@ export const fetchLocation = async (
     await cache.write(updatedCache);
 
     return newFeatures.map(convertFeatureToLocationRecord);
+};
+
+export const locationService: ServiceDefinition = {
+    writeMode: "append",
+    isEnv: isLocationEnv,
+    fetch: (env, lastRecord) => fetchLocation(env, lastRecord),
 };

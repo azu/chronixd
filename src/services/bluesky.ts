@@ -1,6 +1,6 @@
 import { AppBskyFeedGetAuthorFeed, BskyAgent } from "@atproto/api";
 import { PostView } from "@atproto/api/dist/client/types/app/bsky/feed/defs";
-import { BlueskyRecord } from "../common/types.js";
+import { BlueskyRecord, ServiceDefinition } from "../common/types.js";
 import { createLogger } from "../common/logger.js";
 
 const logger = createLogger("Bluesky");
@@ -145,3 +145,9 @@ export async function fetchBluesky(env: BlueSkyEnv, lastRecord: BlueskyRecord | 
     logger.info("post-able items count", postItems.length);
     return postItems;
 }
+
+export const blueskyService: ServiceDefinition = {
+    writeMode: "append",
+    isEnv: isBlueSkyEnv,
+    fetch: (env, lastRecord) => fetchBluesky(env, lastRecord as BlueskyRecord | null),
+};

@@ -1,4 +1,4 @@
-import { BaseRecord, RssRecord } from "../common/types.js";
+import { BaseRecord, RssRecord, ServiceDefinition } from "../common/types.js";
 import Parser from 'rss-parser';
 import { createCache } from "../common/cache.js";
 
@@ -53,3 +53,9 @@ export const fetchRss = async (env: RssEnv, _lastRecord: BaseRecord | null): Pro
         };
     });
 }
+
+export const rssService: ServiceDefinition = {
+    writeMode: "append",
+    isEnv: isRssEnv,
+    fetch: (env, lastRecord) => fetchRss(env, lastRecord),
+};

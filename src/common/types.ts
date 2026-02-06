@@ -83,3 +83,25 @@ export type AnyRecord =
     | LinearRecord
     | LocationRecord
     | NotionRecord;
+
+export type ReplaceFilter = {
+    type: string;
+    sinceUnixTimeMs: number;
+};
+
+export type FetchOptions = {
+    limit: number;
+};
+
+export type ServiceDefinition = {
+    writeMode: "append";
+    isEnv: (env: unknown) => boolean;
+    fetch: (env: any, lastRecord: BaseRecord | null, options: FetchOptions) => Promise<BaseRecord[]>;
+} | {
+    writeMode: "replace";
+    isEnv: (env: unknown) => boolean;
+    fetch: (env: any, lastRecord: BaseRecord | null, options: FetchOptions) => Promise<{
+        records: BaseRecord[];
+        replaceFilter: ReplaceFilter;
+    }>;
+};

@@ -1,4 +1,4 @@
-import { BaseRecord, GitHubSearchRecord } from "../common/types.js";
+import { BaseRecord, GitHubSearchRecord, ServiceDefinition } from "../common/types.js";
 import { graphql, GraphqlResponseError } from "@octokit/graphql";
 import { SearchResultItemConnection } from "@octokit/graphql-schema";
 import { createLogger } from "../common/logger.js";
@@ -265,3 +265,9 @@ export const fetchGitHubSearch = async (env: GitHubSearchEnv, _lastRecord: BaseR
     await cache.write(cachedEvents.concat(filteredResults));
     return filteredResults.map(convertSearchResultToRecord);
 }
+
+export const githubSearchService: ServiceDefinition = {
+    writeMode: "append",
+    isEnv: isGitHubSearchEnv,
+    fetch: (env, lastRecord) => fetchGitHubSearch(env, lastRecord),
+};
