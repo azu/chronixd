@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
-import { appendRecords } from "./ndjson.js";
+import { appendRecords, replaceRecords } from "./ndjson.js";
 import { BaseRecord } from "../common/types.js";
 
 const TEST_DIR = path.join(import.meta.dir, "../../.test-output-ndjson");
@@ -113,6 +113,166 @@ describe("appendRecords", () => {
             );
             const dirExists = await fs.access(path.join(TEST_DIR, "my-timeline")).then(() => true).catch(() => false);
             expect(dirExists).toBe(false);
+        } finally {
+            if (prev === undefined) {
+                delete process.env.CHRONIXD_DRY_RUN;
+            } else {
+                process.env.CHRONIXD_DRY_RUN = prev;
+            }
+        }
+    });
+});
+
+describe("replaceRecords", () => {
+    const options = { outputDir: TEST_DIR, name: "my-timeline", service: "test-service" };
+
+    beforeEach(async () => {
+        await fs.rm(TEST_DIR, { recursive: true, force: true });
+    });
+
+    afterEach(async () => {
+        await fs.rm(TEST_DIR, { recursive: true, force: true });
+    });
+
+    test("writes records to new file when no existing data", async () => {
+        const sinceUnixTimeMs = new Date("2024-03-01T00:00:00Z").getTime();
+        const records: BaseRecord[] = [
+            { type: "calendar", unixTimeMs: new Date("2024-03-10T10:00:00Z").getTime() },
+            { type: "calendar", unixTimeMs: new Date("2024-03-20T10:00:00Z").getTime() },
+        ];
+
+        await replaceRecords(options, records, { type: "calendar", sinceUnixTimeMs });
+
+        const filePath = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "03.ndjson");
+        const content = await fs.readFile(filePath, "utf-8");
+        const lines = content.trimEnd().split("\n");
+        expect(lines.length).toBe(2);
+        expect(JSON.parse(lines[0]).unixTimeMs).toBe(records[0].unixTimeMs);
+        expect(JSON.parse(lines[1]).unixTimeMs).toBe(records[1].unixTimeMs);
+    });
+
+    test("replaces matching records and keeps others", async () => {
+        const filePath = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "03.ndjson");
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        const existing = [
+            { type: "GitHub", unixTimeMs: new Date("2024-03-05T10:00:00Z").getTime() },
+            { type: "calendar", unixTimeMs: new Date("2024-03-10T10:00:00Z").getTime(), summary: "old event" },
+            { type: "calendar", unixTimeMs: new Date("2024-03-15T10:00:00Z").getTime(), summary: "deleted event" },
+        ];
+        await fs.writeFile(filePath, existing.map(r => JSON.stringify(r)).join("\n") + "\n", "utf-8");
+
+        const sinceUnixTimeMs = new Date("2024-03-08T00:00:00Z").getTime();
+        const newRecords: BaseRecord[] = [
+            { type: "calendar", unixTimeMs: new Date("2024-03-10T10:00:00Z").getTime() },
+        ];
+
+        await replaceRecords(options, newRecords, { type: "calendar", sinceUnixTimeMs });
+
+        const content = await fs.readFile(filePath, "utf-8");
+        const lines = content.trimEnd().split("\n").map(l => JSON.parse(l));
+        expect(lines.length).toBe(2);
+        expect(lines[0].type).toBe("GitHub");
+        expect(lines[1].type).toBe("calendar");
+        expect(lines[1].unixTimeMs).toBe(newRecords[0].unixTimeMs);
+    });
+
+    test("removes deleted events when records is empty", async () => {
+        const filePath = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "03.ndjson");
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        const existing = [
+            { type: "GitHub", unixTimeMs: new Date("2024-03-05T10:00:00Z").getTime() },
+            { type: "calendar", unixTimeMs: new Date("2024-03-10T10:00:00Z").getTime() },
+        ];
+        await fs.writeFile(filePath, existing.map(r => JSON.stringify(r)).join("\n") + "\n", "utf-8");
+
+        const sinceUnixTimeMs = new Date("2024-03-01T00:00:00Z").getTime();
+        await replaceRecords(options, [], { type: "calendar", sinceUnixTimeMs });
+
+        const content = await fs.readFile(filePath, "utf-8");
+        const lines = content.trimEnd().split("\n").map(l => JSON.parse(l));
+        expect(lines.length).toBe(1);
+        expect(lines[0].type).toBe("GitHub");
+    });
+
+    test("handles records spanning multiple months", async () => {
+        const sinceUnixTimeMs = new Date("2024-03-15T00:00:00Z").getTime();
+        const records: BaseRecord[] = [
+            { type: "calendar", unixTimeMs: new Date("2024-03-20T10:00:00Z").getTime() },
+            { type: "calendar", unixTimeMs: new Date("2024-04-05T10:00:00Z").getTime() },
+        ];
+
+        await replaceRecords(options, records, { type: "calendar", sinceUnixTimeMs });
+
+        const marFile = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "03.ndjson");
+        const aprFile = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "04.ndjson");
+        const marContent = await fs.readFile(marFile, "utf-8");
+        const aprContent = await fs.readFile(aprFile, "utf-8");
+        expect(marContent.trimEnd().split("\n").length).toBe(1);
+        expect(aprContent.trimEnd().split("\n").length).toBe(1);
+    });
+
+    test("preserves records before sinceUnixTimeMs of same type", async () => {
+        const filePath = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "03.ndjson");
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        const existing = [
+            { type: "calendar", unixTimeMs: new Date("2024-03-01T10:00:00Z").getTime(), summary: "past event" },
+            { type: "calendar", unixTimeMs: new Date("2024-03-15T10:00:00Z").getTime(), summary: "future event" },
+        ];
+        await fs.writeFile(filePath, existing.map(r => JSON.stringify(r)).join("\n") + "\n", "utf-8");
+
+        const sinceUnixTimeMs = new Date("2024-03-10T00:00:00Z").getTime();
+        const newRecords: BaseRecord[] = [
+            { type: "calendar", unixTimeMs: new Date("2024-03-20T10:00:00Z").getTime() },
+        ];
+
+        await replaceRecords(options, newRecords, { type: "calendar", sinceUnixTimeMs });
+
+        const content = await fs.readFile(filePath, "utf-8");
+        const lines = content.trimEnd().split("\n").map(l => JSON.parse(l));
+        expect(lines.length).toBe(2);
+        expect(lines[0].unixTimeMs).toBe(existing[0].unixTimeMs);
+        expect(lines[1].unixTimeMs).toBe(newRecords[0].unixTimeMs);
+    });
+
+    test("sorts merged records by unixTimeMs", async () => {
+        const filePath = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "03.ndjson");
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        const existing = [
+            { type: "GitHub", unixTimeMs: new Date("2024-03-20T10:00:00Z").getTime() },
+        ];
+        await fs.writeFile(filePath, existing.map(r => JSON.stringify(r)).join("\n") + "\n", "utf-8");
+
+        const sinceUnixTimeMs = new Date("2024-03-01T00:00:00Z").getTime();
+        const newRecords: BaseRecord[] = [
+            { type: "calendar", unixTimeMs: new Date("2024-03-10T10:00:00Z").getTime() },
+        ];
+
+        await replaceRecords(options, newRecords, { type: "calendar", sinceUnixTimeMs });
+
+        const content = await fs.readFile(filePath, "utf-8");
+        const lines = content.trimEnd().split("\n").map(l => JSON.parse(l));
+        expect(lines.length).toBe(2);
+        expect(lines[0].type).toBe("calendar");
+        expect(lines[1].type).toBe("GitHub");
+    });
+
+    test("dry run does not modify files", async () => {
+        const filePath = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "03.ndjson");
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        const existing = [
+            { type: "calendar", unixTimeMs: new Date("2024-03-10T10:00:00Z").getTime() },
+        ];
+        const originalContent = existing.map(r => JSON.stringify(r)).join("\n") + "\n";
+        await fs.writeFile(filePath, originalContent, "utf-8");
+
+        const prev = process.env.CHRONIXD_DRY_RUN;
+        process.env.CHRONIXD_DRY_RUN = "true";
+        try {
+            const sinceUnixTimeMs = new Date("2024-03-01T00:00:00Z").getTime();
+            await replaceRecords(options, [], { type: "calendar", sinceUnixTimeMs });
+
+            const content = await fs.readFile(filePath, "utf-8");
+            expect(content).toBe(originalContent);
         } finally {
             if (prev === undefined) {
                 delete process.env.CHRONIXD_DRY_RUN;
