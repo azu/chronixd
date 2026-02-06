@@ -50,6 +50,21 @@ chronixd --output ./path/to/db --limit 1000
 5. `src/schema/definitions.ts` - スキーマ定義を追加
 6. `index.html` - ENV GeneratorのSERVICESにフィールド定義を追加
 
+## リリース
+
+```bash
+# パッチリリース（例: 3.4.0 → 3.4.1）
+npx npm@latest version patch
+
+# マイナーリリース（例: 3.4.0 → 3.5.0）
+npx npm@latest version minor
+
+# メジャーリリース（例: 3.4.0 → 4.0.0）
+npx npm@latest version major
+```
+
+`postversion`スクリプトで`sync-version` → `git commit` → `git push --follow-tags`が自動実行される。
+
 ## キャッシュ
 
 重複防止のため`.cache/`にキャッシュを保存。GitHub Actionsでは`actions/cache`の設定が必要。
