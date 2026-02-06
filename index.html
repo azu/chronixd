@@ -146,6 +146,13 @@ const SERVICES = {
             { key: "notion_data_source_id", label: "Data Source ID", placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" },
         ]
     },
+    slack: {
+        label: "Slack Search",
+        fields: [
+            { key: "slack_token", label: "User Token", placeholder: "xoxp-...", type: "password" },
+            { key: "slack_query", label: "Search Query", placeholder: "from:@me" },
+        ]
+    },
 };
 
 let entryCount = 0;

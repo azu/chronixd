@@ -131,6 +131,25 @@ export const SCHEMA_DEFINITIONS: ServiceSchemaDefinition[] = [
             properties: { type: "VARCHAR", description: "Page properties as JSON string. Date values are stored as {start, end?} objects — use json_extract(properties, '$.PropName.start')::DATE to query" },
         },
     },
+    {
+        recordType: "Slack",
+        serviceDir: "slack",
+        description: "Slack search messages",
+        columns: {
+            type: { type: "VARCHAR", enum: ["Slack"], description: "Record type" },
+            unixTimeMs: { type: "BIGINT", description: "Unix timestamp in milliseconds" },
+            url: { type: "VARCHAR", nullable: true, description: "Message permalink" },
+            text: { type: "VARCHAR", description: "Message text content" },
+            channel: { type: "VARCHAR", description: "Channel name" },
+            channelId: { type: "VARCHAR", description: "Channel ID" },
+            username: { type: "VARCHAR", description: "Message author username" },
+            userId: { type: "VARCHAR", description: "Message author user ID" },
+            permalink: { type: "VARCHAR", description: "Slack message permalink" },
+            team: { type: "VARCHAR", description: "Workspace team ID" },
+            ts: { type: "VARCHAR", description: "Slack message timestamp ID" },
+            iid: { type: "VARCHAR", description: "Slack message unique identifier" },
+        },
+    },
 ];
 
 export const SERVICE_DIR_MAP: Record<string, string> = Object.fromEntries(

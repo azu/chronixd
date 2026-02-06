@@ -6,8 +6,9 @@ import { isRssEnv, RssEnv, RSSType } from "./services/rss.js";
 import { isLinearEnv, LinearEnv, LinearType } from "./services/linear.js";
 import { isLocationEnv, LocationEnv, LocationType } from "./services/location.js";
 import { isNotionEnv, NotionEnv, NotionType } from "./services/notion.js";
+import { isSlackEnv, SlackEnv, SlackType } from "./services/slack.js";
 
-export type SupportedEnv = (BlueSkyEnv | GitHubEnv | GitHubSearchEnv | CalendarEnv | RssEnv | LinearEnv | LocationEnv | NotionEnv) & {
+export type SupportedEnv = (BlueSkyEnv | GitHubEnv | GitHubSearchEnv | CalendarEnv | RssEnv | LinearEnv | LocationEnv | NotionEnv | SlackEnv) & {
     name: string;
 };
 
@@ -28,6 +29,8 @@ export const typeOfEnv = (env: SupportedEnv): string => {
         return LocationType;
     } else if (isNotionEnv(env)) {
         return NotionType;
+    } else if (isSlackEnv(env)) {
+        return SlackType;
     }
     throw new Error("unknown env type");
 };
