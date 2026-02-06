@@ -1,6 +1,6 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import { SCHEMA_DEFINITIONS, type ColumnSchema } from "../schema/definitions.js";
+import { SCHEMA_DEFINITIONS, type ColumnSchema, type ServiceSchemaDefinition } from "../schema/definitions.js";
 import { info } from "../common/logger.js";
 
 type ExtraColumns = {
@@ -8,9 +8,16 @@ type ExtraColumns = {
     columns: Record<string, ColumnSchema>;
 };
 
-export const writeServiceSchemas = async (outputDir: string, extraColumns?: ExtraColumns[]): Promise<void> => {
+type WriteServiceSchemasOptions = {
+    activeServiceDirs: Set<string>;
+    extraColumns?: ExtraColumns[];
+};
+
+export const writeServiceSchemas = async (outputDir: string, options: WriteServiceSchemasOptions): Promise<void> => {
+    const { activeServiceDirs, extraColumns } = options;
+    const activeDefs = SCHEMA_DEFINITIONS.filter((def) => activeServiceDirs.has(def.serviceDir));
     const schema: Record<string, { description: string; path: string; columns: Record<string, unknown> }> = {};
-    for (const def of SCHEMA_DEFINITIONS) {
+    for (const def of activeDefs) {
         const extra = extraColumns?.filter((e) => e.serviceDir === def.serviceDir) ?? [];
         const mergedColumns = extra.reduce(
             (acc, e) => ({ ...acc, ...e.columns }),
@@ -27,16 +34,16 @@ export const writeServiceSchemas = async (outputDir: string, extraColumns?: Extr
     await fs.writeFile(schemaPath, JSON.stringify(schema, null, 2) + "\n", "utf-8");
     info("wrote schema to %s", schemaPath);
 
-    await writeAgentsMd(outputDir);
+    await writeAgentsMd(outputDir, activeDefs);
     await writeClaudeMd(outputDir);
 };
 
-const generateAgentsMd = (): string => {
-    const serviceList = SCHEMA_DEFINITIONS.map(
+const generateAgentsMd = (activeDefs: ServiceSchemaDefinition[]): string => {
+    const serviceList = activeDefs.map(
         (def) => `- \`${def.serviceDir}\`: ${def.description}`
     ).join("\n");
 
-    const exampleService = SCHEMA_DEFINITIONS[0];
+    const exampleService = activeDefs[0];
     const examplePath = `${exampleService.serviceDir}/**/*.ndjson`;
 
     return `# Data Directory
@@ -79,9 +86,9 @@ ORDER BY unixTimeMs DESC;
 `;
 };
 
-const writeAgentsMd = async (outputDir: string): Promise<void> => {
+const writeAgentsMd = async (outputDir: string, activeDefs: ServiceSchemaDefinition[]): Promise<void> => {
     const filePath = path.join(outputDir, "AGENTS.md");
-    await fs.writeFile(filePath, generateAgentsMd(), "utf-8");
+    await fs.writeFile(filePath, generateAgentsMd(activeDefs), "utf-8");
     info("wrote %s", filePath);
 };
 

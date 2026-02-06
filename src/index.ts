@@ -61,7 +61,8 @@ const fetchService = async (env: SupportedEnv, lastRecord: BaseRecord | null): P
 const cliOptions = parseCli();
 const envs = parserEnvs();
 
-// Collect dynamic schema from Notion data sources
+// Collect active services and dynamic schema
+const activeServiceDirs = new Set(envs.map((env) => getServiceDir(typeOfEnv(env))));
 const extraColumns: { serviceDir: string; columns: Record<string, import("./schema/definitions.js").ColumnSchema> }[] = [];
 for (const env of envs) {
     if (isNotionEnv(env)) {
@@ -73,7 +74,7 @@ for (const env of envs) {
         }
     }
 }
-await writeServiceSchemas(cliOptions.output, extraColumns);
+await writeServiceSchemas(cliOptions.output, { activeServiceDirs, extraColumns });
 for (const env of envs) {
     const envType = typeOfEnv(env);
     const serviceDir = getServiceDir(envType);
