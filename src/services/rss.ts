@@ -24,7 +24,7 @@ const isFeedItem = (v: unknown): v is FeedItem => {
 export const fetchRss = async (env: RssEnv, _lastRecord: BaseRecord | null): Promise<RssRecord[]> => {
     const parser = new Parser();
     const feed = await parser.parseURL(env.rss_url);
-    const cache = createCache<CacheItem>("rss.json");
+    const cache = createCache<CacheItem>("rss.json", { maxItems: 10000 });
     const oldItems = await cache.read();
     const newItems = feed.items.filter(item => {
         if (!isFeedItem(item)) {
