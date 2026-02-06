@@ -13,20 +13,12 @@ import { fetchLocation, isLocationEnv } from "./services/location.js";
 import { parseCli } from "./cli.js";
 import { appendRecords } from "./writer/ndjson.js";
 import { readLastRecord } from "./writer/lastItem.js";
+import { writeServiceSchemas } from "./writer/schema.js";
+import { SERVICE_DIR_MAP } from "./schema/definitions.js";
 
 if (Boolean(process.env.CHRONIXD_DRY_RUN)) {
     info("DRY_RUN mode");
 }
-
-const SERVICE_DIR_MAP: Record<string, string> = {
-    "Bluesky": "bluesky",
-    "GitHub": "github-events",
-    "GitHubSearch": "github-search",
-    "calendar": "calendar",
-    "RSS": "rss",
-    "Linear": "linear",
-    "Location": "location",
-};
 
 const getServiceDir = (envType: string): string => {
     return SERVICE_DIR_MAP[envType] ?? envType.toLowerCase();
@@ -64,6 +56,7 @@ const fetchService = async (env: SupportedEnv, lastRecord: BaseRecord | null): P
 };
 
 const cliOptions = parseCli();
+await writeServiceSchemas(cliOptions.output);
 const envs = parserEnvs();
 for (const env of envs) {
     const envType = typeOfEnv(env);
