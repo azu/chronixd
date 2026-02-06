@@ -10,6 +10,7 @@ import { fetchCalendar, isCalendarEnv } from "./services/calendar.js";
 import { fetchRss, isRssEnv } from "./services/rss.js";
 import { fetchLinear, isLinearEnv } from "./services/linear.ts";
 import { fetchLocation, isLocationEnv } from "./services/location.js";
+import { fetchNotion, fetchNotionSchema, isNotionEnv } from "./services/notion.js";
 import { parseCli } from "./cli.js";
 import { appendRecords } from "./writer/ndjson.js";
 import { readLastRecord } from "./writer/lastItem.js";
@@ -40,6 +41,8 @@ const fetchService = async (env: SupportedEnv, lastRecord: BaseRecord | null): P
             return await fetchLinear(env, lastRecord);
         } else if (isLocationEnv(env)) {
             return await fetchLocation(env, lastRecord);
+        } else if (isNotionEnv(env)) {
+            return await fetchNotion(env, lastRecord);
         }
     } catch (error) {
         if (error instanceof RetryAbleError) {
@@ -56,8 +59,21 @@ const fetchService = async (env: SupportedEnv, lastRecord: BaseRecord | null): P
 };
 
 const cliOptions = parseCli();
-await writeServiceSchemas(cliOptions.output);
 const envs = parserEnvs();
+
+// Collect dynamic schema from Notion data sources
+const extraColumns: { serviceDir: string; columns: Record<string, import("./schema/definitions.js").ColumnSchema> }[] = [];
+for (const env of envs) {
+    if (isNotionEnv(env)) {
+        try {
+            const columns = await fetchNotionSchema(env);
+            extraColumns.push({ serviceDir: "notion", columns });
+        } catch (e) {
+            warn("Failed to fetch Notion schema for %s: %s", env.name, (e as Error).message);
+        }
+    }
+}
+await writeServiceSchemas(cliOptions.output, extraColumns);
 for (const env of envs) {
     const envType = typeOfEnv(env);
     const serviceDir = getServiceDir(envType);

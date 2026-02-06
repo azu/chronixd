@@ -65,6 +65,15 @@ export type LocationRecord = BaseRecord & {
     poi?: string;
 };
 
+export type NotionPropertyValue = string | number | boolean | string[] | { start: string; end?: string };
+
+export type NotionRecord = BaseRecord & {
+    type: "Notion";
+    pageId: string;
+    title: string;
+    properties: Record<string, NotionPropertyValue>;
+};
+
 export type AnyRecord =
     | BlueskyRecord
     | GitHubEventRecord
@@ -72,4 +81,5 @@ export type AnyRecord =
     | CalendarRecord
     | RssRecord
     | LinearRecord
-    | LocationRecord;
+    | LocationRecord
+    | NotionRecord;

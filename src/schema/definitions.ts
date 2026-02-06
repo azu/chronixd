@@ -1,13 +1,13 @@
-type DuckDBType = "VARCHAR" | "BIGINT" | "DOUBLE" | "INTEGER" | "VARCHAR[]";
+export type DuckDBType = "VARCHAR" | "BIGINT" | "DOUBLE" | "INTEGER" | "VARCHAR[]";
 
-type ColumnSchema = {
+export type ColumnSchema = {
     type: DuckDBType;
     description: string;
     nullable?: boolean;
     enum?: string[];
 };
 
-type ServiceSchemaDefinition = {
+export type ServiceSchemaDefinition = {
     recordType: string;
     serviceDir: string;
     description: string;
@@ -116,6 +116,19 @@ export const SCHEMA_DEFINITIONS: ServiceSchemaDefinition[] = [
             speed: { type: "DOUBLE", nullable: true, description: "Speed" },
             address: { type: "VARCHAR", nullable: true, description: "Reverse geocoded address" },
             poi: { type: "VARCHAR", nullable: true, description: "Point of interest" },
+        },
+    },
+    {
+        recordType: "Notion",
+        serviceDir: "notion",
+        description: "Notion database pages",
+        columns: {
+            type: { type: "VARCHAR", enum: ["Notion"], description: "Record type" },
+            unixTimeMs: { type: "BIGINT", description: "Unix timestamp in milliseconds" },
+            url: { type: "VARCHAR", nullable: true, description: "Page URL" },
+            title: { type: "VARCHAR", description: "Page title" },
+            pageId: { type: "VARCHAR", description: "Notion page ID" },
+            properties: { type: "VARCHAR", description: "Page properties as JSON string. Date values are stored as {start, end?} objects — use json_extract(properties, '$.PropName.start')::DATE to query" },
         },
     },
 ];
