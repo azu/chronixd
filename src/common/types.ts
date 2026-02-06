@@ -74,6 +74,19 @@ export type NotionRecord = BaseRecord & {
     properties: Record<string, NotionPropertyValue>;
 };
 
+export type SlackRecord = BaseRecord & {
+    type: "Slack";
+    text: string;
+    channel: string;
+    channelId: string;
+    username: string;
+    userId: string;
+    permalink: string;
+    team: string;
+    ts: string;
+    iid: string;
+};
+
 export type AnyRecord =
     | BlueskyRecord
     | GitHubEventRecord
@@ -82,7 +95,8 @@ export type AnyRecord =
     | RssRecord
     | LinearRecord
     | LocationRecord
-    | NotionRecord;
+    | NotionRecord
+    | SlackRecord;
 
 export type ReplaceFilter = {
     type: string;
