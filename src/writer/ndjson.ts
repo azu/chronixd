@@ -36,7 +36,7 @@ export const appendRecords = async (options: WriteOptions, records: BaseRecord[]
     }
     for (const [key, groupRecords] of groups) {
         const [year, month] = key.split("/");
-        const dir = path.join(options.outputDir, options.name, options.service, year);
+        const dir = path.join(options.outputDir, options.service, options.name, year);
         const filePath = path.join(dir, `${month}.ndjson`);
         const lines = groupRecords.map((r) => JSON.stringify(r)).join("\n") + "\n";
         if (isDryRun) {

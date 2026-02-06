@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS location AS
-SELECT * FROM read_ndjson('db/**/location/**/*.ndjson', columns = {
+SELECT * FROM read_ndjson('db/location/**/*.ndjson', columns = {
     type: 'VARCHAR',
     unixTimeMs: 'BIGINT',
     url: 'VARCHAR',

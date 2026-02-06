@@ -24,7 +24,7 @@ describe("readLastRecord", () => {
     });
 
     test("reads last record from latest month file", async () => {
-        const dir = path.join(TEST_DIR, "my-timeline", "bluesky", "2024");
+        const dir = path.join(TEST_DIR, "bluesky", "my-timeline", "2024");
         await fs.mkdir(dir, { recursive: true });
 
         const record1 = { type: "Bluesky", unixTimeMs: 1000, text: "first" };
@@ -44,8 +44,8 @@ describe("readLastRecord", () => {
     });
 
     test("reads from latest year and latest month", async () => {
-        const dir2023 = path.join(TEST_DIR, "my-timeline", "bluesky", "2023");
-        const dir2024 = path.join(TEST_DIR, "my-timeline", "bluesky", "2024");
+        const dir2023 = path.join(TEST_DIR, "bluesky", "my-timeline", "2023");
+        const dir2024 = path.join(TEST_DIR, "bluesky", "my-timeline", "2024");
         await fs.mkdir(dir2023, { recursive: true });
         await fs.mkdir(dir2024, { recursive: true });
 
@@ -71,7 +71,7 @@ describe("readLastRecord", () => {
     });
 
     test("skips empty files and reads from next available", async () => {
-        const dir = path.join(TEST_DIR, "my-timeline", "bluesky", "2024");
+        const dir = path.join(TEST_DIR, "bluesky", "my-timeline", "2024");
         await fs.mkdir(dir, { recursive: true });
 
         const record = { type: "Bluesky", unixTimeMs: 3000 };

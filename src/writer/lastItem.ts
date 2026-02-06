@@ -9,7 +9,7 @@ export type ReadLastOptions = {
 };
 
 export const readLastRecord = async (options: ReadLastOptions): Promise<BaseRecord | null> => {
-    const serviceDir = path.join(options.outputDir, options.name, options.service);
+    const serviceDir = path.join(options.outputDir, options.service, options.name);
     let years: string[];
     try {
         years = await fs.readdir(serviceDir);

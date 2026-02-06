@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS bluesky AS
-SELECT * FROM read_ndjson('db/**/bluesky/**/*.ndjson', columns = {
+SELECT * FROM read_ndjson('db/bluesky/**/*.ndjson', columns = {
     type: 'VARCHAR',
     unixTimeMs: 'BIGINT',
     url: 'VARCHAR',

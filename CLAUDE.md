@@ -36,7 +36,7 @@ chronixd --output ./path/to/db
 
 ## 出力パス
 
-`{output}/{name}/{service}/{year}/{month}.ndjson`
+`{output}/{service}/{name}/{year}/{month}.ndjson`
 
 ## サービス追加時の更新手順
 

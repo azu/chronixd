@@ -26,7 +26,7 @@ describe("appendRecords", () => {
             records
         );
 
-        const filePath = path.join(TEST_DIR, "my-timeline", "test-service", "2024", "03.ndjson");
+        const filePath = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "03.ndjson");
         const content = await fs.readFile(filePath, "utf-8");
         const lines = content.trimEnd().split("\n");
         expect(lines.length).toBe(2);
@@ -45,8 +45,8 @@ describe("appendRecords", () => {
             records
         );
 
-        const janFile = path.join(TEST_DIR, "my-timeline", "test-service", "2024", "01.ndjson");
-        const febFile = path.join(TEST_DIR, "my-timeline", "test-service", "2024", "02.ndjson");
+        const janFile = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "01.ndjson");
+        const febFile = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "02.ndjson");
         const janContent = await fs.readFile(janFile, "utf-8");
         const febContent = await fs.readFile(febFile, "utf-8");
         expect(janContent.trimEnd().split("\n").length).toBe(1);
@@ -65,7 +65,7 @@ describe("appendRecords", () => {
         await appendRecords(options, records1);
         await appendRecords(options, records2);
 
-        const filePath = path.join(TEST_DIR, "my-timeline", "test-service", "2024", "06.ndjson");
+        const filePath = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "06.ndjson");
         const content = await fs.readFile(filePath, "utf-8");
         const lines = content.trimEnd().split("\n");
         expect(lines.length).toBe(2);
@@ -93,7 +93,7 @@ describe("appendRecords", () => {
             records
         );
 
-        const filePath = path.join(TEST_DIR, "my-timeline", "test-service", "2024", "05.ndjson");
+        const filePath = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "05.ndjson");
         const content = await fs.readFile(filePath, "utf-8");
         const lines = content.trimEnd().split("\n").map(l => JSON.parse(l));
         expect(lines[0].unixTimeMs).toBeLessThan(lines[1].unixTimeMs);
