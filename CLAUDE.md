@@ -46,7 +46,7 @@ chronixd --output ./path/to/db
 2. `src/common/types.ts` - Record型を追加
 3. `src/envs.ts` - `SupportedEnv`に型を追加、`typeOfEnv`に分岐を追加
 4. `src/index.ts` - `fetchService`に分岐を追加、`SERVICE_DIR_MAP`にマッピング追加
-5. `src/schemas/` - DuckDB用SQLスキーマ追加
+5. `src/schema/definitions.ts` - スキーマ定義を追加
 
 ## キャッシュ
 

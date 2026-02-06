@@ -126,7 +126,7 @@ ORDER BY unixTimeMs DESC
 LIMIT 100;
 ```
 
-DuckDB schema definitions are available in `src/schemas/`.
+Schema definitions are in `src/schema/definitions.ts`. Running chronixd outputs `schema.json` to the output directory.
 
 ## Output Format
 
