@@ -22,7 +22,7 @@ export const createCache = <T>(cacheFileName: string) => {
     }
     const write = async (cache: T[]) => {
         // DRY run
-        if (process.env.BLUE_NOTION_DRY_RUN) {
+        if (process.env.CHRONIXD_DRY_RUN) {
             debug("[DRY RUN] write cache", cache)
             return;
         }

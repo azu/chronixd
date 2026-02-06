@@ -1,7 +1,6 @@
 import { fetchBluesky, isBlueSkyEnv } from "./services/bluesky.js";
-import { fetchLastPage, syncToNotion } from "./notion/Notion.js";
-import { parserEnvs, SupportedEnv, typeOfEnv } from "./notion/envs.js";
-import { ServiceItem } from "./common/ServiceItem.js";
+import { parserEnvs, SupportedEnv, typeOfEnv } from "./envs.js";
+import { BaseRecord } from "./common/types.js";
 import { debug, info, warn } from "./common/logger.js";
 import { fetchGitHubSearch, isGitHubSearchEnv } from "./services/github_search.js";
 import { fetchGitHubEvents, isGithubEnv } from "./services/github.js";
@@ -11,52 +10,80 @@ import { fetchCalendar, isCalendarEnv } from "./services/calendar.js";
 import { fetchRss, isRssEnv } from "./services/rss.js";
 import { fetchLinear, isLinearEnv } from "./services/linear.ts";
 import { fetchLocation, isLocationEnv } from "./services/location.js";
+import { parseCli } from "./cli.js";
+import { appendRecords } from "./writer/ndjson.js";
+import { readLastRecord } from "./writer/lastItem.js";
 
-if (Boolean(process.env.DRY_RUN)) {
+if (Boolean(process.env.CHRONIXD_DRY_RUN)) {
     info("DRY_RUN mode");
 }
-const fetchService = async (env: SupportedEnv, lastItem: ServiceItem | null): Promise<Promise<ServiceItem[]>> => {
+
+const SERVICE_DIR_MAP: Record<string, string> = {
+    "Bluesky": "bluesky",
+    "GitHub": "github-events",
+    "GitHubSearch": "github-search",
+    "calendar": "calendar",
+    "RSS": "rss",
+    "Linear": "linear",
+    "Location": "location",
+};
+
+const getServiceDir = (envType: string): string => {
+    return SERVICE_DIR_MAP[envType] ?? envType.toLowerCase();
+};
+
+const fetchService = async (env: SupportedEnv, lastRecord: BaseRecord | null): Promise<BaseRecord[]> => {
     try {
         if (isBlueSkyEnv(env)) {
-            return await fetchBluesky(env, lastItem);
+            return await fetchBluesky(env, lastRecord as Parameters<typeof fetchBluesky>[1]);
         } else if (isGithubEnv(env)) {
-            return await fetchGitHubEvents(env, lastItem)
+            return await fetchGitHubEvents(env, lastRecord);
         } else if (isGitHubSearchEnv(env)) {
-            return await fetchGitHubSearch(env, lastItem);
+            return await fetchGitHubSearch(env, lastRecord);
         } else if (isCalendarEnv(env)) {
-            return await fetchCalendar(env, lastItem);
+            return await fetchCalendar(env, lastRecord);
         } else if (isRssEnv(env)) {
-            return await fetchRss(env, lastItem);
-        } else if(isLinearEnv(env)){
-            return await fetchLinear(env, lastItem);
+            return await fetchRss(env, lastRecord);
+        } else if (isLinearEnv(env)) {
+            return await fetchLinear(env, lastRecord);
         } else if (isLocationEnv(env)) {
-            return await fetchLocation(env, lastItem);
+            return await fetchLocation(env, lastRecord);
         }
     } catch (error) {
         if (error instanceof RetryAbleError) {
             info("retryable error", error.message);
-            return fetchService(env, lastItem);
+            return fetchService(env, lastRecord);
         } else if (error instanceof RateLimitError) {
             warn("rate limit error", error.message);
             warn("treat rate limit error as success");
-            return Promise.resolve([]); //
+            return [];
         }
         throw error;
     }
-    throw new Error("unsupported env:" + (env as { Type: "invalid" }).Type);
-}
+    throw new Error("unsupported env");
+};
+
+const cliOptions = parseCli();
 const envs = parserEnvs();
 for (const env of envs) {
     const envType = typeOfEnv(env);
-    const lastItem = await fetchLastPage(env);
-    if (lastItem?.unixTimeMs) {
-        info("env:%s, last item exists at %s", envType, new Date(lastItem?.unixTimeMs).toISOString());
+    const serviceDir = getServiceDir(envType);
+    const lastRecord = await readLastRecord({
+        outputDir: cliOptions.output,
+        name: env.name,
+        service: serviceDir,
+    });
+    if (lastRecord?.unixTimeMs) {
+        info("env:%s, last record exists at %s", envType, new Date(lastRecord.unixTimeMs).toISOString());
     } else {
-        info("env:%s, last item not exists", envType);
+        info("env:%s, last record not exists", envType);
     }
-    debug("env:%s, lastItem object", envType, lastItem);
+    debug("env:%s, lastRecord object", envType, lastRecord);
 
-    const postableItems = await fetchService(env, lastItem);
-    // sync to notion
-    await syncToNotion(env, postableItems);
+    const records = await fetchService(env, lastRecord);
+    info("env:%s, new records count: %d", envType, records.length);
+    await appendRecords(
+        { outputDir: cliOptions.output, name: env.name, service: serviceDir },
+        records
+    );
 }

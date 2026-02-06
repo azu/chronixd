@@ -1,5 +1,4 @@
-import { ServiceItem } from "../common/ServiceItem.js";
-import { NotionEnv } from "../notion/Notion.js";
+import { BaseRecord, GitHubEventRecord } from "../common/types.js";
 import { Octokit } from "@octokit/rest";
 import { createLogger } from "../common/logger.js";
 import { Endpoints } from "@octokit/types";
@@ -11,10 +10,10 @@ const logger = createLogger("GitHub");
 export type GitHubEnv = {
     github_token: string;
     github_username: string;
-} & NotionEnv;
+};
 export const GitHubType = "GitHub" as const;
-export const isGithubEnv = (env: any): env is GitHubEnv => {
-    return typeof env.github_token === "string" && typeof env.github_username === "string";
+export const isGithubEnv = (env: unknown): env is GitHubEnv => {
+    return typeof (env as GitHubEnv).github_token === "string" && typeof (env as GitHubEnv).github_username === "string";
 }
 type Events = Endpoints["GET /users/{username}/events"]["response"]["data"];
 type Event = Endpoints["GET /users/{username}/events"]["response"]["data"][number];
@@ -33,13 +32,11 @@ export const fetchUserEvents = async ({
             }
         });
 
-        // 50x error will be retry-able error
         if (rest.status >= 500 && rest.status < 600) {
             throw new RetryAbleError("Retry-able Error on GitHub: " + rest.status);
         }
         return rest.data
     } catch (error) {
-        // rate limit error
         if ((error as { status: number }).status === 403) {
             throw new RateLimitError("Rate Limit Error on GitHub", {
                 cause: error,
@@ -49,13 +46,13 @@ export const fetchUserEvents = async ({
     }
 };
 
-export const collectUntil = (events: Events, lastServiceItem: ServiceItem): Events => {
+export const collectUntil = (events: Events, lastRecord: BaseRecord): Events => {
     const filteredResults: Events = [];
     try {
         for (const event of events) {
             if (!event.created_at) continue;
             const createAtTime = new Date(event.created_at).getTime();
-            if (lastServiceItem.unixTimeMs < createAtTime) {
+            if (lastRecord.unixTimeMs < createAtTime) {
                 filteredResults.push(event);
             } else {
                 return filteredResults;
@@ -69,21 +66,6 @@ export const collectUntil = (events: Events, lastServiceItem: ServiceItem): Even
     }
     return filteredResults;
 };
-const getStateEmoji = (state: string | undefined): string => {
-    if (!state) {
-        return "";
-    }
-    switch (state.toUpperCase()) {
-        case "OPEN":
-        case "OPENED":
-            return "🟢 ";
-        case "CLOSED":
-            return "🔴 ";
-        case "MERGED":
-            return "🟣 ";
-    }
-    return "";
-}
 
 async function fetchCommitMessage(
     octokit: Octokit,
@@ -171,13 +153,12 @@ async function fetchIssueDetails(
     }
 }
 
-async function compileFormPushEvent(octokit: Octokit, event: any): Promise<string> {
-    const commits = event.payload.commits;
+async function compileFormPushEvent(octokit: Octokit, event: Event): Promise<string> {
+    const commits = (event.payload as { commits?: Array<{ message?: string; sha?: string }> }).commits;
     const repoFullName = event.repo.name;
     const [owner, repo] = repoFullName.split('/');
     const messages: string[] = [];
 
-    // commits が存在する場合は従来通り処理
     if (commits && Array.isArray(commits) && commits.length > 0) {
         for (const commit of commits) {
             if (commit.message) {
@@ -189,9 +170,8 @@ async function compileFormPushEvent(octokit: Octokit, event: any): Promise<strin
                 }
             }
         }
-    } else if (event.payload.head) {
-        // commits が null の場合は head SHA からコミットメッセージを取得
-        const message = await fetchCommitMessage(octokit, owner, repo, event.payload.head);
+    } else if ((event.payload as { head?: string }).head) {
+        const message = await fetchCommitMessage(octokit, owner, repo, (event.payload as { head: string }).head);
         if (message) {
             messages.push("- " + message);
         }
@@ -206,26 +186,24 @@ async function parseEventTitle(octokit: Octokit, event: Event): Promise<string> 
 
     if (event.payload.issue) {
         const issue = event.payload.issue;
-        // Fetch from API if title is missing
         if (!issue.title && issue.number) {
             const details = await fetchIssueDetails(octokit, owner, repo, issue.number);
             if (details) {
-                return `${getStateEmoji(details.state)} ${details.title} on ${event.repo.name}#${issue.number}`;
+                return `${details.title}`;
             }
         }
-        return `${getStateEmoji(issue.state)} ${issue.title} on ${event.repo.name}#${issue.number}`;
+        return `${issue.title}`;
     } else { // @ts-expect-error
         if (event.payload.pull_request) {
             // @ts-expect-error
             const pr = event.payload.pull_request;
-            // Fetch from API if title is missing
             if (!pr.title && pr.number) {
                 const details = await fetchPullRequestDetails(octokit, owner, repo, pr.number);
                 if (details) {
-                    return `${getStateEmoji(details.state)} ${details.title} on ${event.repo.name}#${pr.number}`;
+                    return `${details.title}`;
                 }
             }
-            return `${getStateEmoji(pr.state)} ${pr.title} on ${event.repo.name}#${pr.number}`;
+            return `${pr.title}`;
         } else {
             // @ts-expect-error
             const parsedEvent = parse(event);
@@ -249,7 +227,6 @@ async function parseEventBody(octokit: Octokit, event: Event): Promise<string> {
         if (payload.issue.body) {
             return payload.issue.body;
         }
-        // Fetch from API if body is missing
         if (payload.issue.number) {
             const details = await fetchIssueDetails(octokit, owner, repo, payload.issue.number);
             return details?.body ?? "";
@@ -264,7 +241,6 @@ async function parseEventBody(octokit: Octokit, event: Event): Promise<string> {
                 // @ts-expect-error
                 return payload.pull_request.body;
             }
-            // Fetch from API if body is missing
             // @ts-expect-error
             if (payload.pull_request.number) {
                 // @ts-expect-error
@@ -281,69 +257,96 @@ function buildEventUrl(event: Event): string {
     const repoName = event.repo.name;
     const payload = event.payload;
 
-    // PullRequestEvent
     // @ts-expect-error
     if (payload.pull_request?.number) {
         // @ts-expect-error
         return `https://github.com/${repoName}/pull/${payload.pull_request.number}`;
     }
 
-    // IssuesEvent / IssueCommentEvent
     if (payload.issue?.number) {
         return `https://github.com/${repoName}/issues/${payload.issue.number}`;
     }
 
-    // PushEvent
     // @ts-expect-error
     if (event.type === "PushEvent" && payload.head) {
         // @ts-expect-error
         return `https://github.com/${repoName}/commit/${payload.head}`;
     }
 
-    // ReleaseEvent
     // @ts-expect-error
     if (payload.release?.html_url) {
         // @ts-expect-error
         return payload.release.html_url;
     }
 
-    // fallback: parse-github-event or repo URL
     // @ts-expect-error
     const parsed = parse(event);
     return parsed?.html_url ?? `https://github.com/${repoName}`;
 }
 
-const convertSearchResultToServiceItem = async (octokit: Octokit, result: Event): Promise<ServiceItem> => {
-    const title = await parseEventTitle(octokit, result);
-    const body = await parseEventBody(octokit, result);
-    const url = buildEventUrl(result);
+function getEventAction(event: Event): string | undefined {
+    const payload = event.payload as { action?: string };
+    return payload.action;
+}
+
+function getEventState(event: Event): string | undefined {
+    if (event.payload.issue) {
+        return event.payload.issue.state;
+    }
+    // @ts-expect-error
+    if (event.payload.pull_request) {
+        // @ts-expect-error
+        return event.payload.pull_request.state;
+    }
+    return undefined;
+}
+
+function getEventNumber(event: Event): number | undefined {
+    if (event.payload.issue) {
+        return event.payload.issue.number;
+    }
+    // @ts-expect-error
+    if (event.payload.pull_request) {
+        // @ts-expect-error
+        return event.payload.pull_request.number;
+    }
+    return undefined;
+}
+
+const convertEventToRecord = async (octokit: Octokit, event: Event): Promise<GitHubEventRecord> => {
+    const title = await parseEventTitle(octokit, event);
+    const body = await parseEventBody(octokit, event);
+    const url = buildEventUrl(event);
     return {
         type: GitHubType,
-        title: body ? `${title}\n\n${body}` : title,
+        eventType: event.type ?? "Unknown",
+        action: getEventAction(event),
+        repo: event.repo.name,
+        title,
+        body: body || undefined,
+        number: getEventNumber(event),
+        state: getEventState(event),
         url,
-        unixTimeMs: result.created_at ? new Date(result.created_at).getTime() : 0,
+        unixTimeMs: event.created_at ? new Date(event.created_at).getTime() : 0,
     }
 }
-export const fetchGitHubEvents = async (env: GitHubEnv, lastServiceItem: ServiceItem | null): Promise<ServiceItem[]> => {
+export const fetchGitHubEvents = async (env: GitHubEnv, lastRecord: BaseRecord | null): Promise<GitHubEventRecord[]> => {
     const octokit = new Octokit({
         auth: env.github_token,
     });
-    // fetch
     const events = await fetchUserEvents({
         github_username: env.github_username,
         GITHUB_TOKEN: env.github_token,
     });
     logger.info("GitHub Events count", events.length);
-    // filter
-    const filteredResults = lastServiceItem
-        ? collectUntil(events, lastServiceItem)
+    const filteredResults = lastRecord
+        ? collectUntil(events, lastRecord)
         : events;
     logger.info("filtered GitHub Events count", filteredResults.length)
-    // convert (sequential to avoid rate limiting)
-    const serviceItems: ServiceItem[] = [];
+    const records: GitHubEventRecord[] = [];
     for (const event of filteredResults) {
-        const item = await convertSearchResultToServiceItem(octokit, event);
-        serviceItems.push(item);
+        const record = await convertEventToRecord(octokit, event);
+        records.push(record);
     }
-    return serviceItems;
+    return records;
 }

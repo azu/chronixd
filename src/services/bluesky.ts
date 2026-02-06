@@ -1,16 +1,14 @@
 import { AppBskyFeedGetAuthorFeed, BskyAgent } from "@atproto/api";
 import { PostView } from "@atproto/api/dist/client/types/app/bsky/feed/defs";
-import { ServiceItem } from "../common/ServiceItem.js";
-import { NotionEnv } from "../notion/Notion.js";
+import { BlueskyRecord } from "../common/types.js";
 import { createLogger } from "../common/logger.js";
 
 const logger = createLogger("Bluesky");
 export type BlueSkyEnv = {
     bluesky_identifier: string;
     bluesky_app_password: string;
-
-} & NotionEnv;
-export const BlueskyType = "Bluesky";
+};
+export const BlueskyType = "Bluesky" as const;
 export const isBlueSkyEnv = (env: unknown): env is BlueSkyEnv => {
     return (env as BlueSkyEnv).bluesky_identifier !== undefined && (env as BlueSkyEnv).bluesky_app_password !== undefined;
 }
@@ -34,38 +32,30 @@ const getRootPost = (post: PostView): { url: string; } | undefined => {
         url,
     }
 }
-// Issue: https://github.com/bluesky-social/atproto/issues/910
-export const convertPostToServiceIr = (post: PostView, identifier: string): ServiceItem => {
+export const convertPostToBlueskyRecord = (post: PostView, identifier: string): BlueskyRecord => {
     const record = post.record as { text?: string };
     if (typeof record.text !== "string") {
         throw new Error("post.record.text is not string");
     }
-    // if post is reply, get root post
     const rootPost = getRootPost(post);
     return {
         type: BlueskyType,
-        // at://did:plc:niluiwex7fsnjak2wxs4j47y/app.bsky.feed.post/3jz3xglxhzu27@@azu.bsky.social
-        title: record.text,
+        text: record.text,
         url: convertHttpUrlFromAtProto(post.uri),
         unixTimeMs: new Date(post.indexedAt).getTime(),
-        // if the reply is self post
-        ...(rootPost ? {
-            parent: {
-                url: rootPost.url
-            },
-        } : {})
+        ...(rootPost ? { parentUrl: rootPost.url } : {}),
     };
 };
 
 type Feed = AppBskyFeedGetAuthorFeed.Response["data"]["feed"];
-export const collectTweetsUntil = async (timeline: ServiceItem[], lastTweet: ServiceItem): Promise<ServiceItem[]> => {
-    const results: ServiceItem[] = [];
+export const collectTweetsUntil = async (timeline: BlueskyRecord[], lastRecord: BlueskyRecord): Promise<BlueskyRecord[]> => {
+    const results: BlueskyRecord[] = [];
     try {
         for (const tweet of timeline) {
-            if (lastTweet.url === tweet.url) {
+            if (lastRecord.url === tweet.url) {
                 return results;
             }
-            if (lastTweet.unixTimeMs < tweet.unixTimeMs) {
+            if (lastRecord.unixTimeMs < tweet.unixTimeMs) {
                 results.push(tweet);
             } else {
                 return results;
@@ -80,7 +70,7 @@ export const collectTweetsUntil = async (timeline: ServiceItem[], lastTweet: Ser
     return results;
 };
 
-export async function fetchBluesky(env: BlueSkyEnv, lastServiceItem: ServiceItem | null): Promise<ServiceItem[]> {
+export async function fetchBluesky(env: BlueSkyEnv, lastRecord: BlueskyRecord | null): Promise<BlueskyRecord[]> {
     const agent = new BskyAgent({
         service: "https://bsky.social"
     });
@@ -94,7 +84,6 @@ export async function fetchBluesky(env: BlueSkyEnv, lastServiceItem: ServiceItem
         logger.error("login error", {
             status: error.status,
             error: error.error,
-            // filter `ratelimit-*` headers
             rateLimitHeaders: Object.fromEntries(Object.entries(error.headers).filter(([key]) => {
                 return key.startsWith("ratelimit-")
             })),
@@ -116,11 +105,10 @@ export async function fetchBluesky(env: BlueSkyEnv, lastServiceItem: ServiceItem
             });
 
             if (timeline.success) {
-                // if found older tweet than lasttweet , stop fetching
                 const latestPost = timeline.data.feed.at(-1);
-                if (lastServiceItem && latestPost) {
+                if (lastRecord && latestPost) {
                     const lastItemDate = new Date(latestPost?.post?.indexedAt ?? "");
-                    if (lastItemDate.getTime() < lastServiceItem.unixTimeMs) {
+                    if (lastItemDate.getTime() < lastRecord.unixTimeMs) {
                         return [...feed, ...timeline.data.feed];
                     }
                 }
@@ -139,21 +127,21 @@ export async function fetchBluesky(env: BlueSkyEnv, lastServiceItem: ServiceItem
         }
     };
 
-    logger.info("fetching from bluesky since %s", lastServiceItem?.unixTimeMs !== undefined
-        ? new Date(lastServiceItem.unixTimeMs).toISOString()
+    logger.info("fetching from bluesky since %s", lastRecord?.unixTimeMs !== undefined
+        ? new Date(lastRecord.unixTimeMs).toISOString()
         : "first");
     const feed = await fetchAuthorFeed({
         actor: env.bluesky_identifier,
         feed: []
     });
     const convertedPosts = feed.map((post) => {
-        return convertPostToServiceIr(post.post, env.bluesky_identifier);
+        return convertPostToBlueskyRecord(post.post, env.bluesky_identifier);
     })
     const sortedPosts = convertedPosts.sort((a, b) => {
         return a.unixTimeMs > b.unixTimeMs ? -1 : 1;
     });
     logger.info("fetched item count", sortedPosts.length);
-    const postItems = lastServiceItem ? await collectTweetsUntil(sortedPosts, lastServiceItem) : sortedPosts;
+    const postItems = lastRecord ? await collectTweetsUntil(sortedPosts, lastRecord) : sortedPosts;
     logger.info("post-able items count", postItems.length);
     return postItems;
 }

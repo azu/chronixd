@@ -6,8 +6,6 @@ describe("isLocationEnv", () => {
         const env = {
             location_api_url: "https://example.com/api/locations",
             location_api_token: "test-token",
-            notion_api_key: "secret_xxx",
-            notion_database_id: "xxx",
         };
         expect(isLocationEnv(env)).toBe(true);
     });
@@ -17,8 +15,6 @@ describe("isLocationEnv", () => {
             location_api_url: "https://example.com/api/locations",
             location_api_token: "test-token",
             location_device_id: "device-1",
-            notion_api_key: "secret_xxx",
-            notion_database_id: "xxx",
         };
         expect(isLocationEnv(env)).toBe(true);
     });
@@ -26,8 +22,6 @@ describe("isLocationEnv", () => {
     test("returns false when location_api_url is missing", () => {
         const env = {
             location_api_token: "test-token",
-            notion_api_key: "secret_xxx",
-            notion_database_id: "xxx",
         };
         expect(isLocationEnv(env)).toBe(false);
     });
@@ -35,8 +29,6 @@ describe("isLocationEnv", () => {
     test("returns false when location_api_token is missing", () => {
         const env = {
             location_api_url: "https://example.com/api/locations",
-            notion_api_key: "secret_xxx",
-            notion_database_id: "xxx",
         };
         expect(isLocationEnv(env)).toBe(false);
     });
@@ -85,20 +77,18 @@ describe("fetchLocation", () => {
     const mockEnv = {
         location_api_url: "https://example.com/api/locations",
         location_api_token: "test-token",
-        notion_api_key: "secret_xxx",
-        notion_database_id: "xxx",
     };
 
     beforeEach(() => {
-        process.env.BLUE_NOTION_DRY_RUN = "true";
+        process.env.CHRONIXD_DRY_RUN = "true";
     });
 
     afterEach(() => {
-        delete process.env.BLUE_NOTION_DRY_RUN;
+        delete process.env.CHRONIXD_DRY_RUN;
         mock.restore();
     });
 
-    test("fetches and converts location data to ServiceItems", async () => {
+    test("fetches and converts location data to LocationRecords", async () => {
         const mockFetch = mock(() =>
             Promise.resolve({
                 ok: true,
@@ -123,13 +113,19 @@ describe("fetchLocation", () => {
 
         // First item - Tokyo with address, POI and speed
         expect(result[0].type).toBe(LocationType);
-        expect(result[0].title).toBe("東京都千代田区丸の内1丁目 東京駅: lat:35.6812, lon:139.7671 (5.2km/h)");
+        expect(result[0].latitude).toBe(35.6812);
+        expect(result[0].longitude).toBe(139.7671);
+        expect(result[0].speed).toBe(1.44);
+        expect(result[0].address).toBe("東京都千代田区丸の内1丁目");
+        expect(result[0].poi).toBe("東京駅");
         expect(result[0].url).toBe("https://www.google.com/maps?q=35.6812,139.7671");
         expect(result[0].unixTimeMs).toBe(new Date("2024-01-15T10:30:00Z").getTime());
 
-        // Second item - San Francisco without POI (fallback to Location)
+        // Second item - San Francisco
         expect(result[1].type).toBe(LocationType);
-        expect(result[1].title).toBe("Location: lat:37.7749, lon:-122.4194");
+        expect(result[1].latitude).toBe(37.7749);
+        expect(result[1].longitude).toBe(-122.4194);
+        expect(result[1].speed).toBeUndefined();
         expect(result[1].url).toBe("https://www.google.com/maps?q=37.7749,-122.4194");
     });
 
@@ -153,7 +149,7 @@ describe("fetchLocation", () => {
         expect(callUrl).toContain("device_id=my-device");
     });
 
-    test("adds from parameter with ISO 8601 format when lastServiceItem exists", async () => {
+    test("adds from parameter with ISO 8601 format when lastRecord exists", async () => {
         const mockFetch = mock(() =>
             Promise.resolve({
                 ok: true,
@@ -162,24 +158,24 @@ describe("fetchLocation", () => {
         );
         globalThis.fetch = mockFetch;
 
-        const lastItem = {
-            type: LocationType,
-            title: "Previous location",
+        const lastRecord = {
+            type: LocationType as const,
+            latitude: 0,
+            longitude: 0,
             unixTimeMs: new Date("2024-01-15T10:45:00Z").getTime(),
         };
 
-        const result = await fetchLocation(mockEnv, lastItem);
+        const result = await fetchLocation(mockEnv, lastRecord);
 
-        // Check that from parameter is set with ISO 8601 format
         const callUrl = mockFetch.mock.calls[0][0] as string;
         expect(callUrl).toContain("from=2024-01-15T10%3A45%3A00.000Z");
 
         // Only the second item (11:00) should be returned
         expect(result.length).toBe(1);
-        expect(result[0].title).toBe("Location: lat:37.7749, lon:-122.4194");
+        expect(result[0].latitude).toBe(37.7749);
     });
 
-    test("uses 24 hours ago as default from when lastServiceItem is null", async () => {
+    test("uses 24 hours ago as default from when lastRecord is null", async () => {
         const mockFetch = mock(() =>
             Promise.resolve({
                 ok: true,
@@ -191,7 +187,6 @@ describe("fetchLocation", () => {
         await fetchLocation(mockEnv, null);
 
         const callUrl = mockFetch.mock.calls[0][0] as string;
-        // Should have both from and to parameters
         expect(callUrl).toContain("from=");
         expect(callUrl).toContain("to=");
     });
@@ -205,13 +200,14 @@ describe("fetchLocation", () => {
         );
         globalThis.fetch = mockFetch;
 
-        const lastItem = {
-            type: LocationType,
-            title: "Previous location",
+        const lastRecord = {
+            type: LocationType as const,
+            latitude: 0,
+            longitude: 0,
             unixTimeMs: new Date("2024-01-15T10:45:00Z").getTime(),
         };
 
-        await fetchLocation(mockEnv, lastItem);
+        await fetchLocation(mockEnv, lastRecord);
 
         const callUrl = mockFetch.mock.calls[0][0] as string;
         expect(callUrl).toContain("from=2024-01-15T10%3A45%3A00.000Z");
@@ -245,7 +241,7 @@ describe("fetchLocation", () => {
                     },
                     properties: {
                         timestamp: "2024-01-15T10:30:00Z",
-                        speed: -1, // Invalid speed
+                        speed: -1,
                     },
                 },
             ],
@@ -261,10 +257,12 @@ describe("fetchLocation", () => {
 
         const result = await fetchLocation(mockEnv, null);
 
-        expect(result[0].title).toBe("Location: lat:0, lon:0");
+        expect(result[0].speed).toBeUndefined();
+        expect(result[0].latitude).toBe(0);
+        expect(result[0].longitude).toBe(0);
     });
 
-    test("uses address and POI as title prefix when both available", async () => {
+    test("includes address and POI fields in record", async () => {
         const response = {
             type: "FeatureCollection",
             features: [
@@ -272,7 +270,7 @@ describe("fetchLocation", () => {
                     type: "Feature",
                     geometry: {
                         type: "Point",
-                        coordinates: [135.5023, 34.6937], // Osaka
+                        coordinates: [135.5023, 34.6937],
                     },
                     properties: {
                         timestamp: "2024-01-15T12:00:00Z",
@@ -293,11 +291,14 @@ describe("fetchLocation", () => {
 
         const result = await fetchLocation(mockEnv, null);
 
-        expect(result[0].title).toBe("大阪府大阪市中央区大阪城1-1 大阪城: lat:34.6937, lon:135.5023");
+        expect(result[0].address).toBe("大阪府大阪市中央区大阪城1-1");
+        expect(result[0].poi).toBe("大阪城");
+        expect(result[0].latitude).toBe(34.6937);
+        expect(result[0].longitude).toBe(135.5023);
         expect(result[0].url).toBe("https://www.google.com/maps?q=34.6937,135.5023");
     });
 
-    test("uses POI name with speed when both available", async () => {
+    test("includes speed in m/s in record", async () => {
         const response = {
             type: "FeatureCollection",
             features: [
@@ -305,11 +306,11 @@ describe("fetchLocation", () => {
                     type: "Feature",
                     geometry: {
                         type: "Point",
-                        coordinates: [139.6917, 35.6895], // Shinjuku
+                        coordinates: [139.6917, 35.6895],
                     },
                     properties: {
                         timestamp: "2024-01-15T12:00:00Z",
-                        speed: 2.78, // 10 km/h
+                        speed: 2.78,
                         poi: "新宿駅",
                     },
                 },
@@ -326,38 +327,7 @@ describe("fetchLocation", () => {
 
         const result = await fetchLocation(mockEnv, null);
 
-        expect(result[0].title).toBe("新宿駅: lat:35.6895, lon:139.6917 (10.0km/h)");
-    });
-
-    test("uses address when POI is not available", async () => {
-        const response = {
-            type: "FeatureCollection",
-            features: [
-                {
-                    type: "Feature",
-                    geometry: {
-                        type: "Point",
-                        coordinates: [140.0, 36.0],
-                    },
-                    properties: {
-                        timestamp: "2024-01-15T12:00:00Z",
-                        address: "東京都港区南麻布",
-                        // No poi field
-                    },
-                },
-            ],
-        };
-
-        const mockFetch = mock(() =>
-            Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve(response),
-            } as Response)
-        );
-        globalThis.fetch = mockFetch;
-
-        const result = await fetchLocation(mockEnv, null);
-
-        expect(result[0].title).toBe("東京都港区南麻布: lat:36, lon:140");
+        expect(result[0].speed).toBe(2.78);
+        expect(result[0].poi).toBe("新宿駅");
     });
 });

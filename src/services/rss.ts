@@ -1,50 +1,27 @@
-import ical from "node-ical"
-import { NotionEnv } from "../notion/Notion.js";
-import { ServiceItem } from "../common/ServiceItem.js";
+import { BaseRecord, RssRecord } from "../common/types.js";
 import Parser from 'rss-parser';
 import { createCache } from "../common/cache.js";
 
 export type RssEnv = {
     rss_url: string;
-} & NotionEnv;
+};
 export const RSSType = "RSS" as const;
-export const isRssEnv = (env: any): env is RssEnv => {
-    return typeof env.rss_url === "string";
+export const isRssEnv = (env: unknown): env is RssEnv => {
+    return typeof (env as RssEnv).rss_url === "string";
 }
 type CacheItem = {
     id: string;
     unixTimeMs: number;
-}
-const updateCacheEvents = ({
-                               oldEvents,
-                               newEvents,
-                               today = new Date()
-                           }: {
-    oldEvents: CacheItem[],
-    newEvents: { uid: string; unixTimeMs: number }[], today?: Date
-}) => {
-    // add serviceItems to cache
-    const newCache = oldEvents.concat(newEvents.map(item => {
-        return {
-            unixTimeMs: item.unixTimeMs,
-            id: item.uid,
-        }
-    }));
-    // remove old cache - before yesterday
-    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-    return newCache.filter(item => {
-        return item.unixTimeMs >= yesterday.getTime();
-    });
 }
 type FeedItem = {
     title: string;
     link: string;
     pubDate: Date;
 }
-const isFeedItem = (v: any): v is FeedItem => {
-    return v && v.pubDate && v.title && v.link;
+const isFeedItem = (v: unknown): v is FeedItem => {
+    return v !== null && typeof v === "object" && "pubDate" in v && "title" in v && "link" in v;
 }
-export const fetchRss = async (env: RssEnv, lastServiceItem: ServiceItem | null): Promise<ServiceItem[]> => {
+export const fetchRss = async (env: RssEnv, _lastRecord: BaseRecord | null): Promise<RssRecord[]> => {
     const parser = new Parser();
     const feed = await parser.parseURL(env.rss_url);
     const cache = createCache<CacheItem>("rss.json");
@@ -58,7 +35,7 @@ export const fetchRss = async (env: RssEnv, lastServiceItem: ServiceItem | null)
     })
     const newEvents = newItems.map(item => {
         return {
-            id: item.link,
+            id: item.link!,
             unixTimeMs: item.pubDate ? new Date(item.pubDate).getTime() : Date.now(),
         }
     }) as CacheItem[];
@@ -70,6 +47,7 @@ export const fetchRss = async (env: RssEnv, lastServiceItem: ServiceItem | null)
         return {
             type: RSSType,
             title: item.title,
+            link: item.link,
             url: item.link,
             unixTimeMs: new Date(item.pubDate).getTime(),
         };

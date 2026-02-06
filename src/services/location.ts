@@ -1,5 +1,4 @@
-import { NotionEnv } from "../notion/Notion.js";
-import { ServiceItem } from "../common/ServiceItem.js";
+import { BaseRecord, LocationRecord } from "../common/types.js";
 import { createCache } from "../common/cache.js";
 import { createLogger } from "../common/logger.js";
 
@@ -9,7 +8,7 @@ export type LocationEnv = {
     location_api_url: string;
     location_api_token: string;
     location_device_id?: string;
-} & NotionEnv;
+};
 
 export const LocationType = "Location" as const;
 
@@ -49,18 +48,6 @@ type CacheItem = {
     unixTimeMs: number;
 };
 
-const formatCoordinate = (lat: number, lon: number): string => {
-    return `lat:${lat}, lon:${lon}`;
-};
-
-const formatSpeed = (speedMps: number | undefined): string => {
-    if (speedMps === undefined || speedMps < 0) {
-        return "";
-    }
-    const speedKmh = speedMps * 3.6;
-    return ` (${speedKmh.toFixed(1)}km/h)`;
-};
-
 const createLocationId = (feature: GeoJSONFeature): string => {
     const timestamp = feature.properties.timestamp;
     const [lon, lat] = feature.geometry.coordinates;
@@ -81,57 +68,49 @@ const updateCacheItems = ({
     today?: Date;
 }): CacheItem[] => {
     const combined = [...oldItems, ...newItems];
-    // remove entries older than 1 day
     const oneDayAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
     return combined.filter((item) => item.unixTimeMs >= oneDayAgo.getTime());
 };
 
-const formatLocationPrefix = (address: string | undefined, poi: string | undefined): string => {
-    if (address && poi) {
-        return `${address} ${poi}`;
+const formatSpeed = (speedMps: number | undefined): number | undefined => {
+    if (speedMps === undefined || speedMps < 0) {
+        return undefined;
     }
-    if (address) {
-        return address;
-    }
-    if (poi) {
-        return poi;
-    }
-    return "Location";
+    return speedMps;
 };
 
-const convertFeatureToServiceItem = (feature: GeoJSONFeature): ServiceItem => {
+const convertFeatureToLocationRecord = (feature: GeoJSONFeature): LocationRecord => {
     const [lon, lat] = feature.geometry.coordinates;
-    const coords = formatCoordinate(lat, lon);
-    const speed = formatSpeed(feature.properties.speed);
-    const { address, poi } = feature.properties;
-    const prefix = formatLocationPrefix(address, poi);
-    const title = `${prefix}: ${coords}${speed}`;
     const url = createGoogleMapsUrl(lat, lon);
     const unixTimeMs = new Date(feature.properties.timestamp).getTime();
 
     return {
         type: LocationType,
-        title,
         url,
         unixTimeMs,
+        latitude: lat,
+        longitude: lon,
+        altitude: feature.properties.altitude,
+        speed: formatSpeed(feature.properties.speed),
+        address: feature.properties.address,
+        poi: feature.properties.poi,
     };
 };
 
 export const fetchLocation = async (
     env: LocationEnv,
-    lastServiceItem: ServiceItem | null
-): Promise<ServiceItem[]> => {
+    lastRecord: BaseRecord | null
+): Promise<LocationRecord[]> => {
     const url = new URL(env.location_api_url);
     if (env.location_device_id) {
         url.searchParams.set("device_id", env.location_device_id);
     }
     url.searchParams.set("format", "geojson");
 
-    // Use from/to parameters to filter by time range (ISO 8601 format)
     const now = new Date();
-    const fromDate = lastServiceItem
-        ? new Date(lastServiceItem.unixTimeMs)
-        : new Date(now.getTime() - 24 * 60 * 60 * 1000); // Default: 24 hours ago
+    const fromDate = lastRecord
+        ? new Date(lastRecord.unixTimeMs)
+        : new Date(now.getTime() - 24 * 60 * 60 * 1000);
     url.searchParams.set("from", fromDate.toISOString());
     url.searchParams.set("to", now.toISOString());
 
@@ -152,16 +131,14 @@ export const fetchLocation = async (
     const oldItems = await cache.read();
     const oldItemIds = new Set(oldItems.map((item) => item.id));
 
-    // Filter out already cached items (API already filters by time via from parameter)
     const newFeatures = data.features.filter((feature) => {
         const id = createLocationId(feature);
         if (oldItemIds.has(id)) {
             return false;
         }
-        // Double-check time filter in case API returns boundary items
-        if (lastServiceItem) {
+        if (lastRecord) {
             const featureTime = new Date(feature.properties.timestamp).getTime();
-            if (featureTime <= lastServiceItem.unixTimeMs) {
+            if (featureTime <= lastRecord.unixTimeMs) {
                 return false;
             }
         }
@@ -170,19 +147,16 @@ export const fetchLocation = async (
 
     logger.info("New location features count", newFeatures.length);
 
-    // Create cache entries for new items
     const newCacheItems: CacheItem[] = newFeatures.map((feature) => ({
         id: createLocationId(feature),
         unixTimeMs: new Date(feature.properties.timestamp).getTime(),
     }));
 
-    // Update cache with cleanup of old entries
     const updatedCache = updateCacheItems({
         oldItems,
         newItems: newCacheItems,
     });
     await cache.write(updatedCache);
 
-    // Convert to ServiceItems
-    return newFeatures.map(convertFeatureToServiceItem);
+    return newFeatures.map(convertFeatureToLocationRecord);
 };

@@ -1,75 +1,68 @@
-# bluenotiondb
+# chronixd
 
-BluenotionDB Sync any service to Notion using Cron services like GitHub Actions.
-
-## Purpose
-
-Notion does not support custom sync DB.
-I want to create sync DB for Bluesky or Twitter etc...
-
-`bluenotiondb` is customizable sync DB for Notion.
+chronixd collects data from various services and outputs NDJSON files.
+The output can be queried with DuckDB.
 
 ## Supported Services
 
 - [Bluesky](https://bsky.app/)
-    - Pull Posts from Bluesky and push to Notion
 - [GitHub Activity](https://github.com/)
-    - Pull events of GitHub user and push to Notion 
-    - Open/Close/Comment of Issues/PRs etc...
 - [GitHub Search](https://github.com/search)
-    - Pull Issues/PRs or Repositories from GitHub Search and push to Notion
-    - **Required**: need to setup `actions/cache` action to prevent duplicated items
 - [Linear](https://linear.app/)
-    - Assigned Issues, Created Issues, and Activity (comments, status changes, etc.)
-    - **Required**: need to setup `actions/cache` action to prevent duplicated items
-- iCal calendar like [Google Calendar](https://calendar.google.com/)
-    - Pull events from iCal and push to Notion
-    - **Required**: need to setup `actions/cache` action to prevent duplicated items
+- iCal calendar (Google Calendar etc.)
 - RSS Feeds
-    - Pull posts from RSS Feeds and push to Notion
-    - **Required**: need to setup `actions/cache` action to prevent duplicated items
-- [Location (Overland iOS)](https://github.com/azu/blued-location)
-    - Pull location data from blued-location API and push to Notion
-    - **Required**: need to setup `actions/cache` action to prevent duplicated items
+- [Location (blued-location)](https://github.com/azu/blued-location)
 
 ## Usage
 
-## Setup Notion
-
-1. Duplicate [This Notion Template](https://efcl.notion.site/Demo-Bluenotion-0f9885a393874c2aa7a4765ff5ddf0be)
-2. Create Notion Integration
-    - <https://www.notion.so/my-integrations>
-    - Copy the API key
-    - Also, You need to install the integration to your Notion Database
-3. Create `BLUENOTION_ENVS` env var using [bluenotiondb env generator](https://azu.github.io/bluenotiondb/)
-    - <https://azu.github.io/bluenotiondb/>
-
-### via CLI
+### CLI
 
 ```bash
-$ BLUENOTION_ENVS='[...]' ./bluenotiondb
+CHRONIXD_ENVS='[...]' ./chronixd --output ./db
+```
+
+- `--output` (`-o`): Output directory (default: `./db`)
+
+Output path: `{output}/{name}/{service}/{year}/{month}.ndjson`
+
+### ENV Configuration
+
+Create `CHRONIXD_ENVS` env var using [chronixd env generator](https://azu.github.io/chronixd/).
+
+Each entry requires a `name` field and service-specific fields:
+
+```json
+[
+  {
+    "name": "my-timeline",
+    "bluesky_identifier": "user.bsky.social",
+    "bluesky_app_password": "xxx"
+  },
+  {
+    "name": "my-timeline",
+    "github_token": "ghp_...",
+    "github_username": "azu"
+  }
+]
 ```
 
 ### via GitHub Actions
 
-1. Create GitHub repository
-2. Put `.github/workflows/update.yml` to the repository
-3. Copy from <https://github.com/azu/bluenotiondb/releases/latest> and Paste to `.github/workflows/update.yml`
-4. Set `BLUENOTION_ENVS` to GitHub repository secret
+chronixd outputs to a separate data repository.
+
+1. Create a data repository
+2. Set `DATA_REPOSITORY` as GitHub Variable (e.g. `azu/my-data`)
+3. Set `DATA_REPO_TOKEN` as GitHub Secret (token with push access to data repo)
+4. Set `CHRONIXD_ENVS` as GitHub Secret
 
 ```yaml
 name: Update
 on:
-  push:
-    branches:
-      - main
   schedule:
-    # every 30 minutes
-    - cron: "*/30 * * * *"
+    - cron: "*/30 0-16,22-23 * * *"
   workflow_dispatch:
-
 env:
-  BLUENOTION_VERSION: v2.5.2
+  CHRONIXD_VERSION: v2.5.2
 
 permissions:
   contents: none
@@ -77,310 +70,94 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - name: Download
-        run: |
-          curl -L https://github.com/azu/bluenotiondb/releases/download/${{env.BLUENOTION_VERSION}}/bluenotiondb -o bluenotiondb
-          chmod +x bluenotiondb
-      - name: Update
-        run: ./bluenotiondb > /dev/null 2>&1
-        env:
-          BLUENOTION_ENVS: ${{ secrets.BLUENOTION_ENVS }}
-```
-
-## Advanced Usage
-
-### Add custom field
-
-- `notion_property_names` option is used for custom property name
-
-You can change the property name by `notion_property_names` option.
-
-- `Title`: title column
-- `URL`: URL type column
-- `Type`: Select type column
-- `Date`: Date type column
-- `Parent`: Parent type column
-  - Enable "Sub Item" in Notion
-  - It will be used for reply representation
-
-For example, if you want to change `Title` to `Tasks` and `URL` to `url`, you can use `notion_property_names` option.
-
-```
-[..., "notion_property_names":{ "Title": "Tasks", "URL": "url" }]
-```
-
-- `notion_extra` field is an object like `{ propertyNames: propertyValue }`
-    - `propertyNames` is property name
-    - `propertyValue` is [notion payload](https://developers.notion.com/reference/property-object)
-
-For example, if you want to add `Tags` column to Notion, you can use `notion_extra` option.
-
-```
-[..., "notion_extra":{ "Tags": { "multi_select": [{ "name": "TEST" }] }}]
-```
-
-
-Limitation: Currently does not put non-Ascii characters to `.env`.
-You can use unicode escape sequence like `\u30bf\u30b9\u30af\u540d` instead of non-Ascii characters.
-
-- [Unicodeエスケープシーケンス変換｜コードをホームページに載せる時に便利 | すぐに使える便利なWEBツール | Tech-Unlimited](https://tech-unlimited.com/escape-unicode.html).
-
-## Recipe
-
-### Sync Google Calendar to Notion
-
-1. Copy your iCal URL from Google Calendar
-2. Create `BLUENOTION_ENVS` env var using [bluenotiondb env generator](https://azu.github.io/bluenotiondb/)
-    - <https://azu.github.io/bluenotiondb/>
-3. Create Update Calendar workflow
-
-```yaml
-name: Update Calendar
-on:
-  schedule:
-    # every 12 hours
-    - cron: "0 */12 * * *"
-  workflow_dispatch:
-env:
-  BLUENOTION_VERSION: v2.5.2
-
-permissions:
-  contents: read
-  actions: write # require to delete cache
-jobs:
-  calendar:
-    runs-on: ubuntu-latest
-    env:
-      cache-name: cache-bluenotion-calendar
-    steps:
-      # actions/cache does not support overwrite cache
-      # https://github.com/actions/cache/issues/342
-      # This job implement overwrite cache using restore + delete + save
-      - name: Checkout
-        uses: actions/checkout@v3 # gh command require repository
-      - name: Restore Cache
-        id: cache-restore
-        uses: actions/cache/restore@v3
+      - name: Checkout data repo
+        uses: actions/checkout@v4
         with:
-          path: ./cache
-          key: ${{ env.cache-name }}
-      - name: Download
-        run: |
-          curl -L https://github.com/azu/bluenotiondb/releases/download/${{env.BLUENOTION_VERSION}}/bluenotiondb -o bluenotiondb
-          chmod +x bluenotiondb
-      - name: Update
-        run: ./bluenotiondb  > /dev/null 2>&1
-        env:
-          CACHE_DIR: ./cache
-          BLUE_NOTION_ENVS: ${{ secrets.BLUE_NOTION_ENVS }}
-      # overwrite cache key
-      - name: Delete Previous Cache
-        if: ${{ steps.cache-restore.outputs.cache-hit }}
-        continue-on-error: true
-        run: |
-          gh extension install actions/gh-actions-cache
-          gh actions-cache delete "${{ env.cache-name }}" --confirm
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Save Cache
-        uses: actions/cache/save@v3
+          repository: ${{ vars.DATA_REPOSITORY }}
+          token: ${{ secrets.DATA_REPO_TOKEN }}
+          path: data-repo
+
+      - name: Restore cache
+        uses: actions/cache/restore@v4
         with:
-          path: ./cache
-          key: ${{ env.cache-name }}
+          path: .cache
+          key: chronixd-cache-${{ github.run_id }}
+          restore-keys: chronixd-cache-
+
+      - name: Download chronixd
+        run: |
+          curl -L https://github.com/azu/chronixd/releases/download/${{env.CHRONIXD_VERSION}}/chronixd -o chronixd
+          chmod +x chronixd
+
+      - name: Run chronixd
+        run: CACHE_DIR=$(pwd)/.cache ./chronixd --output ./data-repo/db > /dev/null 2>&1
+        env:
+          CHRONIXD_ENVS: ${{ secrets.CHRONIXD_ENVS }}
+
+      - name: Save cache
+        uses: actions/cache/save@v4
+        with:
+          path: .cache
+          key: chronixd-cache-${{ github.run_id }}
+
+      - name: Commit and push
+        working-directory: data-repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add db/ > /dev/null 2>&1
+          git diff --cached --quiet 2>/dev/null || git commit -m "chore: update db" > /dev/null 2>&1
+          git push > /dev/null 2>&1
 ```
 
-### Sync GitHub Search Results to Notion
+## Query with DuckDB
 
-1. Create `BLUENOTION_ENVS` env var using [bluenotiondb env generator](https://azu.github.io/bluenotiondb/)
-    - e.g. Fetch your assigned Issue and PR
-      - Query: `assignee:@me state:open`
-      - Type: `Issues`
-2. Create Update GitHub Search workflow
+```sql
+-- Read all Bluesky records
+SELECT * FROM read_ndjson('db/my-timeline/bluesky/**/*.ndjson');
 
-```yaml
-name: Update GitHub Search
-on:
-  schedule:
-    # every hour
-    - cron: "0 * * * *"
-  workflow_dispatch:
-env:
-  BLUENOTION_VERSION: v2.5.2
+-- Read all GitHub events
+SELECT * FROM read_ndjson('db/my-timeline/github-events/**/*.ndjson');
 
-permissions:
-  contents: read
-  actions: write # require to delete cache
-jobs:
-  github-search:
-    runs-on: ubuntu-latest
-    env:
-      cache-name: cache-bluenotion-github-search
-    steps:
-      # actions/cache does not support overwrite cache
-      # https://github.com/actions/cache/issues/342
-      # This job implement overwrite cache using restore + delete + save
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Restore Cache
-        id: cache-restore
-        uses: actions/cache/restore@v3
-        with:
-          path: ./cache
-          key: ${{ env.cache-name }}
-      - name: Download
-        run: |
-          curl -L https://github.com/azu/bluenotiondb/releases/download/${{env.BLUENOTION_VERSION}}/bluenotiondb -o bluenotiondb
-          chmod +x bluenotiondb
-      - name: Update
-        run: ./bluenotiondb  > /dev/null 2>&1
-        env:
-          CACHE_DIR: ./cache
-          BLUE_NOTION_ENVS: ${{ secrets.BLUE_NOTION_ENVS }}
-      # overwrite cache key
-      - name: Delete Previous Cache
-        if: ${{ steps.cache-restore.outputs.cache-hit }}
-        continue-on-error: true
-        run: |
-          gh extension install actions/gh-actions-cache
-          gh actions-cache delete "${{ env.cache-name }}" --confirm
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Save Cache
-        uses: actions/cache/save@v3
-        with:
-          path: ./cache
-          key: ${{ env.cache-name }}
+-- Search across services with timestamp
+SELECT type, unixTimeMs, url
+FROM read_ndjson('db/my-timeline/**/*.ndjson')
+ORDER BY unixTimeMs DESC
+LIMIT 100;
 ```
 
-### Overwrite `type` column
+DuckDB schema definitions are available in `src/schemas/`.
 
-If you want to overwrite built-in `type` column, you can use `notion_extra` option.
+## Output Format
 
-```bash
-BLUENOTION_ENVS='[{"notion_database_id":"xxx","notion_api_key":"xxx","rss_url":"https://rsshub.app/github/repos/azu","notion_extra":{"Type":{"select":{"name":"My GitHub Repository"}}}}]'
-```
+NDJSON (1 line per record). Each record has common fields and service-specific fields.
 
-### Sync Location to Notion
+Common fields:
 
-1. Deploy [blued-location](https://github.com/azu/blued-location) to your server
-2. Create `BLUENOTION_ENVS` env var using [bluenotiondb env generator](https://azu.github.io/bluenotiondb/)
-    - <https://azu.github.io/bluenotiondb/>
-3. Create Update Location workflow
-
-```yaml
-name: Update Location
-on:
-  schedule:
-    # every hour
-    - cron: "0 * * * *"
-  workflow_dispatch:
-env:
-  BLUENOTION_VERSION: v2.5.2
-
-permissions:
-  contents: read
-  actions: write # require to delete cache
-jobs:
-  location:
-    runs-on: ubuntu-latest
-    env:
-      cache-name: cache-bluenotion-location
-    steps:
-      # actions/cache does not support overwrite cache
-      # https://github.com/actions/cache/issues/342
-      # This job implement overwrite cache using restore + delete + save
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Restore Cache
-        id: cache-restore
-        uses: actions/cache/restore@v3
-        with:
-          path: ./cache
-          key: ${{ env.cache-name }}
-      - name: Download
-        run: |
-          curl -L https://github.com/azu/bluenotiondb/releases/download/${{env.BLUENOTION_VERSION}}/bluenotiondb -o bluenotiondb
-          chmod +x bluenotiondb
-      - name: Update
-        run: ./bluenotiondb  > /dev/null 2>&1
-        env:
-          CACHE_DIR: ./cache
-          BLUE_NOTION_ENVS: ${{ secrets.BLUE_NOTION_ENVS }}
-      # overwrite cache key
-      - name: Delete Previous Cache
-        if: ${{ steps.cache-restore.outputs.cache-hit }}
-        continue-on-error: true
-        run: |
-          gh extension install actions/gh-actions-cache
-          gh actions-cache delete "${{ env.cache-name }}" --confirm
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Save Cache
-        uses: actions/cache/save@v3
-        with:
-          path: ./cache
-          key: ${{ env.cache-name }}
-```
-
-## Related
-
-- [azu/mytweets: Search all your tweets of Twitter/Bluesky](https://github.com/azu/mytweets)
-
-## Architecture
-
-1. Fetch posts from Service
-2. Convert post to ServiceItem
-3. Push ServiceItem to Notion
-
-```mermaid
-graph LR
-    A[Fetch Service] --> B[Convert to ServiceItem]
-    B --> C[Push ServiceItem to Notion]
-```
-
-If you want to support a new service, you need to implement the following:
-
-1. Add `services/<service-name>.ts`
-2. Implement `fetch~` function
-3. Add Env type to `notion/envs.ts`
-4. Add `fetch~` to `index.ts`
+- `type`: string
+- `unixTimeMs`: number
+- `url`: string (optional)
 
 ## Cache
 
-If future date will be added, this service should be cached.
-Otherwise, dedupe events by using last updated date.
+Services that use cache-based deduplication (GitHub Search, Calendar, RSS, Linear, Location) store cache files in `CACHE_DIR` (default: `./.cache`).
+GitHub Actions requires `actions/cache` configuration.
 
 ## Development
-
-To install dependencies:
 
 ```bash
 bun install
 ```
 
-To use local env:
-
-1. Create `BLUENOTION_ENVS` env var using [bluenotiondb env generator](https://azu.github.io/bluenotiondb/)
-2. Crate `.env` file and paste `BLUENOTION_ENVS` to `.env`
-
 ```bash
-BLUENOTION_ENVS='[...]'
-````
-
-To run:
-
-```bash
-bun run main
+# Create .env with CHRONIXD_ENVS
+op run --env-file .env -- bun run dry-run
 ```
-
-This project was created using `bun init` in bun v0.6.0. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
 
 ## Debug
 
-You can use `DEBUG` env to debug.
-
 ```bash
-DEBUG=1 ./bluenotiondb
+DEBUG=1 ./chronixd --output ./db
 ```
 
 ## Release Flow

@@ -1,5 +1,4 @@
-import { ServiceItem } from "../common/ServiceItem.js";
-import { NotionEnv } from "../notion/Notion.js";
+import { BaseRecord, GitHubSearchRecord } from "../common/types.js";
 import { graphql, GraphqlResponseError } from "@octokit/graphql";
 import { SearchResultItemConnection } from "@octokit/graphql-schema";
 import { createLogger } from "../common/logger.js";
@@ -11,11 +10,11 @@ export type GitHubSearchEnv = {
     github_token: string;
     github_search_query: string;
     github_search_type: "ISSUE" | "REPOSITORY";
-} & NotionEnv;
-export const isGitHubSearchEnv = (env: any): env is GitHubSearchEnv => {
-    return typeof env.github_token === "string" && typeof env.github_search_query === "string";
+};
+export const isGitHubSearchEnv = (env: unknown): env is GitHubSearchEnv => {
+    return typeof (env as GitHubSearchEnv).github_token === "string" && typeof (env as GitHubSearchEnv).github_search_query === "string";
 }
-export const GitHubSearchType = "GitHubSearch";
+export const GitHubSearchType = "GitHubSearch" as const;
 type SearchResultRepo = {
     __typename: "Repository";
     id: string;
@@ -140,7 +139,6 @@ export const searchGithub = ({
         }) ?? []) as SearchResultItem[];
     }).catch((error) => {
         if (error instanceof GraphqlResponseError) {
-            // 50x error will be retry
             const statusCode = Number(error.headers.status ?? 0);
             if (statusCode >= 500 && statusCode < 600) {
                 throw new RetryAbleError("Retryable error on GitHub Search", {
@@ -153,14 +151,8 @@ export const searchGithub = ({
 };
 
 type RelativeDateUnit = "day" | "month" | "year";
-/**
- * return relative date
- * @param value - or + value
- * @param unit
- */
 const relativeDate = (value: number, unit: RelativeDateUnit): Date => {
     const now = new Date();
-    // year
     if (unit === "year") {
         return new Date(now.getFullYear() + value, now.getMonth(), now.getDate());
     } else if (unit === "month") {
@@ -171,29 +163,18 @@ const relativeDate = (value: number, unit: RelativeDateUnit): Date => {
     throw new Error("invalid unit");
 }
 const formatYYYYMMDD = (date: Date): string => {
-    // 2021-01-01
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
-/**
- * Parse search query and resolve to date
- * @example
- * `test created:>{{+1day}}` -> `test created:>2021-01-02`
- * `test created:{{today}}` -> `test created:2021-01-01`
- * @param searchQuery
- */
 export const parserFunction = (searchQuery: string) => {
     const relativeFunctionRegExp = /{{(?<operator>\+|-)?(?<value>\d+)(?<unit>day|month|year)}}/g;
     const relativeFunctionMatch = searchQuery.matchAll(relativeFunctionRegExp);
-    // reverse to prevent index change
     for (const match of [...relativeFunctionMatch].reverse()) {
         const { operator, value, unit } = match.groups!;
         const relativeDateValue = relativeDate(Number(`${operator}${value}`), unit as RelativeDateUnit);
-        // replace matched range to result
         searchQuery = searchQuery.substring(0, match.index)
             + formatYYYYMMDD(relativeDateValue)
             + searchQuery.substring(match.index! + match[0].length);
     }
-    // {{today}} -> 2021-01-01
     const todayRegExp = /{{today}}/g;
     const todayMatch = searchQuery.matchAll(todayRegExp);
     for (const match of [...todayMatch].reverse()) {
@@ -203,12 +184,12 @@ export const parserFunction = (searchQuery: string) => {
     }
     return searchQuery;
 }
-export const collectUntil = (searchResults: SearchResultItem[], lastServiceItem: ServiceItem): SearchResultItem[] => {
+export const collectUntil = (searchResults: SearchResultItem[], lastRecord: BaseRecord): SearchResultItem[] => {
     const filteredResults: SearchResultItem[] = [];
     try {
         for (const result of searchResults) {
             const updatedAtTime = new Date(result.updatedAt).getTime();
-            if (lastServiceItem.unixTimeMs < updatedAtTime) {
+            if (lastRecord.unixTimeMs < updatedAtTime) {
                 filteredResults.push(result);
             } else {
                 return filteredResults;
@@ -218,46 +199,42 @@ export const collectUntil = (searchResults: SearchResultItem[], lastServiceItem:
         logger.error(new Error("collect error", {
             cause: error,
         }));
-        throw new Error("collect error at bluesky");
+        throw new Error("collect error at github search");
     }
     return filteredResults;
 };
-const getStateEmoji = (state: "OPEN" | "CLOSED" | "MERGED"): string => {
-    switch (state) {
-        case "OPEN":
-            return "🟢";
-        case "CLOSED":
-            return "🔴";
-        case "MERGED":
-            return "🟣";
-    }
-}
-const convertSearchResultToServiceItem = (result: SearchResultItem): ServiceItem => {
+
+const convertSearchResultToRecord = (result: SearchResultItem): GitHubSearchRecord => {
     switch (result.__typename) {
         case "Repository":
             return {
-                type: "GitHub Repository",
-                title: result.nameWithOwner,
+                type: GitHubSearchType,
+                resultType: "Repository",
+                nameWithOwner: result.nameWithOwner,
                 url: result.url,
                 unixTimeMs: new Date(result.updatedAt).getTime(),
             }
         case "PullRequest":
+            return {
+                type: GitHubSearchType,
+                resultType: "PullRequest",
+                nameWithOwner: result.repository.nameWithOwner,
+                title: result.title,
+                state: result.state,
+                author: result.author?.login,
+                number: result.number,
+                url: result.comments.nodes.length > 0 ? result.comments.nodes[0].url : result.url,
+                unixTimeMs: new Date(result.updatedAt).getTime(),
+            }
         case "Issue":
             return {
-                type: "GitHub Issue",
-                // <repo>#<issue number> <title> <status>
-                title: [
-                    {
-                        type: "text",
-                        text: {
-                            content: `${getStateEmoji(result.state)} ${result.repository.nameWithOwner}#${result.number} ${result.title} ${getStateEmoji(result.state)} ${result.state}`,
-                            link: {
-                                url: result.url
-                            }
-                        }
-                    }
-                ],
-                // if comment exists, use comment url
+                type: GitHubSearchType,
+                resultType: "Issue",
+                nameWithOwner: result.repository.nameWithOwner,
+                title: result.title,
+                state: result.state,
+                author: result.author?.login,
+                number: result.number,
                 url: result.comments.nodes.length > 0 ? result.comments.nodes[0].url : result.url,
                 unixTimeMs: new Date(result.updatedAt).getTime(),
             }
@@ -265,8 +242,7 @@ const convertSearchResultToServiceItem = (result: SearchResultItem): ServiceItem
     throw new Error("unknown type: " + (result as { __typename: never }).__typename)
 }
 const IGNORE_AUTHOR = ["dependabot-preview[bot]", "renovate", "dependabot[bot]"];
-export const fetchGitHubSearch = async (env: GitHubSearchEnv, lastServiceItem: ServiceItem | null): Promise<ServiceItem[]> => {
-    // fetch
+export const fetchGitHubSearch = async (env: GitHubSearchEnv, _lastRecord: BaseRecord | null): Promise<GitHubSearchRecord[]> => {
     const searchResults = await searchGithub({
         query: parserFunction(env.github_search_query),
         type: env.github_search_type,
@@ -287,6 +263,5 @@ export const fetchGitHubSearch = async (env: GitHubSearchEnv, lastServiceItem: S
     })
     logger.info("filtered results count", filteredResults.length)
     await cache.write(cachedEvents.concat(filteredResults));
-    // convert
-    return filteredResults.map(convertSearchResultToServiceItem);
+    return filteredResults.map(convertSearchResultToRecord);
 }

@@ -2,256 +2,224 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>bluenotiondb env generator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>chronixd ENV Generator</title>
     <style>
-        .app {
-            width: 80%;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 800px;
             margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
         }
-
-        /*  fit width */
-        input {
+        h1 { margin-bottom: 4px; }
+        p.desc { color: #666; margin-top: 0; }
+        .entry {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .entry-header select {
+            width: auto;
+            font-size: 14px;
+            padding: 4px 8px;
+            margin-bottom: 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .field-group input,
+        .field-group select {
             width: 100%;
+            padding: 6px 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 14px;
         }
-
+        .field-group { margin-bottom: 8px; }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-add { background: #0070f3; color: #fff; margin-bottom: 16px; }
+        .btn-remove { background: #e00; color: #fff; font-size: 12px; padding: 4px 10px; flex-shrink: 0; }
+        .btn-generate { background: #000; color: #fff; font-size: 16px; padding: 10px 24px; }
         textarea {
             width: 100%;
+            min-height: 120px;
+            font-family: monospace;
+            font-size: 13px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            cursor: pointer;
         }
-
-        details {
-            margin-top: 1em;
-        }
+        .output { margin-top: 16px; }
+        .hint { font-size: 12px; color: #888; margin-top: -6px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
-<div class="app">
-    <h1>bluenotiondb env generator</h1>
-    <p><a title="azu/bluenotiondb: Sync Bluesky to Notion." href="https://github.com/azu/bluenotiondb">azu/bluenotiondb:
-        Sync Bluesky to Notion.</a></p>
-    <p>This page does not send any input to servers</p>
-    <div>
-        <h2>Notion Config</h2>
-        <p><b>Notion API Token and Notion Database ID is required</b></p>
-        <label for="notion_api_key">Notion API key:</label><br>
-        <input type="text" id="notion_api_key"
-               name="notion_api_key"
-               placeholder="secret_xxxx"><br>
-        <label for="notion_database_id">Notion Database ID:</label><br>
-        <input type="text" id="notion_database_id"
-               name="notion_database_id"
-               placeholder="xxxxx"><br>
-    </div>
-    <div>
-        <h2>Bluesky Config</h2>
-        <p>If you want to sync your Bluesky posts, fill your bluskey account information.</p>
-        <label for="bluesky_identifier">Bluesky Identifier:</label><br>
-        <input type="text" id="bluesky_identifier"
-               name="bluesky_identifier"
-               placeholder="xxxxx.bsky.app"><br>
-        <label for="bluesky_app_password">BlueSky App password:</label><br>
-        <input type="text" id="bluesky_app_password"
-               name="bluesky_app_password"
-               placeholder="xxx-xxx-xxx"><br>
-    </div>
-    <div>
-        <h2>GitHub Activity Config</h2>
-        <p>If you want to sync your GitHub Activity, fill your GitHub account information.</p>
-        <label for="github_token___a">GitHub Token:</label><br>
-        <input type="text" id="github_token___a"
-               name="github_token___a"
-               placeholder="ghp-xxxx-xxxx-xxxx"><br>
-        <!--  github_username -->
-        <label for="github_username">GitHub User Name:</label><br>
-        <input type="text" id="github_username"
-               name="github_username"
-               placeholder="GitHub User Name"><br>
-    </div>
-    <div>
-        <h2>GitHub Search Config</h2>
-        <p>If you want to sync search results, fill the search query.</p>
-        <details>
-            <summary>GitHub Search Examples</summary>
-            <p>You can use some special syntax in search query</p>
-            <ul>
-                <li><code>{{today}}</code>: today</li>
-                <li><code>{{+1day}}</code>: tomorrow</li>
-                <li><code>{{+1month}}</code>: next month</li>
-                <li><code>{{+1year}}</code>: next year</li>
-                <li><code>{{-1day}}</code>: yesterday</li>
-                <li><code>{{-1month}}</code>: last month</li>
-                <li><code>{{-1year}}</code>: last year</li>
-            </ul>
-            <p>
-                Other syntax is <a
-                    href="https://docs.github.com/en/issues/tracking-your-work-with-issues/filtering-and-searching-issues-and-pull-requests"
-                    target="_blank" rel="noopener">Search Reference</a>
-            </p>
-            <h4>Examples</h4>
-            <h5>Search issues which are related to you</h5>
-            <ul>
-                <li>GitHub Search Type: <code>ISSUE</code></li>
-                <li>GitHub Search query: <code>involves:@me sort:updated-desc</code></li>
-            </ul>
-            <h5>Search Repositories which are created by you since yesterday</h5>
-            <ul>
-                <li>GitHub Search Type: <code>Repository</code></li>
-                <li>GitHub Search query: <code>user:@me created:>={{-1day}}</code></li>
-            </ul>
-        </details>
-        <label for="github_token___b">GitHub Token:</label><br>
-        <input type="text" id="github_token___b"
-               name="github_token___b"
-               placeholder="ghp-xxxx-xxxx-xxxx"><br>
-        <!-- select ISSUE or REPOSITORY -->
-        <label for="github_search_type">GitHub Search Type:</label><br>
-        <select id="github_search_type" name="github_search_type">
-            <option value="ISSUE">ISSUE</option>
-            <option value="REPOSITORY">REPOSITORY</option>
-        </select><br>
-        <label for="github_search_query">GitHub Search query:</label><br>
-        <input type="text" id="github_search_query"
-               name="github_search_query"
-               placeholder="involves:@me sort:updated-desc"
-        >
-    </div>
-    <div>
-        <h2>Linear Config</h2>
-        <p><a href="https://linear.app/">Linear</a> assigned/created issues</p>
-        <label for="linear_token">Linear Token Token:</label><br>
-        <input type="text" id="linear_token"
-               name="linear_token"
-               placeholder="lin_api_xxx"><br>
-        <!-- select "assigned_me" | "created_by_me" | "activity" -->
-        <label for="linear_search_type">Linear Search Type:</label><br>
-        <select id="linear_search_type" name="linear_search_type">
-            <option value="assigned_me">assigned_me</option>
-            <option value="created_by_me">created_by_me</option>
-            <option value="activity">activity</option>
-        </select>
-    </div>
-    <div>
-        <h2>Calendar(iCal)</h2>
-        <p>If you want to sync calendar, fill the iCal Url.</p>
-        <label for="calendar_url">iCal URL:</label><br>
-        <input type="text" id="calendar_url"
-               name="calendar_url"
-               placeholder="https://example.test/you.ical"><br>
-    </div>
-    <div>
-        <h2>RSS Feed</h2>
-        <p>If you want to sync RSS, fill the RSS Feed Url.</p>
-        <label for="calendar_url">RSS URL:</label><br>
-        <input type="text"
-               id="rss_url"
-               name="rss_url"
-               placeholder="https://example.test/feed.rss"><br>
-    </div>
-    <div>
-        <h2>Location (Overland iOS)</h2>
-        <p>Sync location data from <a href="https://github.com/azu/blued-location">blued-location</a> API.</p>
-        <label for="location_api_url">Location API URL:</label><br>
-        <input type="text"
-               id="location_api_url"
-               name="location_api_url"
-               placeholder="https://your-domain.com/api/locations"><br>
-        <label for="location_api_token">Location API Token:</label><br>
-        <input type="text"
-               id="location_api_token"
-               name="location_api_token"
-               placeholder="your-api-token"><br>
-        <label for="location_device_id">Location Device ID (optional):</label><br>
-        <input type="text"
-               id="location_device_id"
-               name="location_device_id"
-               placeholder="device-id"><br>
-    </div>
-    <div>
-        <h2>Generated env(click and copy)</h2>
-        <textarea id="generated_env" cols="30" rows="10" readonly></textarea>
-    </div>
-</div>
-<script>
-    const targetInputSets = [
-        // Bluesky
-        [
-            'notion_database_id',
-            'notion_api_key',
-            'bluesky_identifier',
-            'bluesky_app_password',
-        ],
-        // GitHub Activity
-        [
-            'notion_database_id',
-            'notion_api_key',
-            'github_token___a',
-            'github_username',
-        ],
-        // GitHub Search
-        [
-            'notion_database_id',
-            'notion_api_key',
-            'github_token___b',
-            'github_search_query',
-            'github_search_type'
-        ],
-        // Linear
-        [
-            'notion_database_id',
-            'notion_api_key',
-            'linear_token',
-            'linear_search_type',
-        ],
-        // Calendar
-        [
-            'notion_database_id',
-            'notion_api_key',
-            'calendar_url',
-        ],
-        // RSS
-        [
-            'notion_database_id',
-            'notion_api_key',
-            'rss_url',
-        ],
-        // Location
-        [
-            'notion_database_id',
-            'notion_api_key',
-            'location_api_url',
-            'location_api_token',
-        ]
-    ];
+<h1>chronixd ENV Generator</h1>
+<p class="desc">Generate <code>CHRONIXD_ENVS</code> JSON for chronixd configuration.</p>
 
-    const generated_env = document.getElementById('generated_env');
-    // click to copy
-    generated_env.addEventListener('click', () => {
-        navigator.clipboard.writeText(generated_env.value).then(() => {
-            alert('copied: ' + generated_env.value);
-        });
-    });
-    const onChange = () => {
-        const envs = [];
-        targetInputSets.forEach((set) => {
-            const env = {};
-            set.forEach((id) => {
-                const input = document.getElementById(id);
-                // ___? will be removed from key
-                env[id.replace(/___\w+/, "")] = input.value;
-            });
-            const isFilledEnv = Object.values(env).every((value) => {
-                return value.length > 0;
-            });
-            if (isFilledEnv) {
-                envs.push(env);
-            }
-        })
-        generated_env.value = "BLUENOTION_ENVS='" + JSON.stringify(envs) + "'"
+<div id="entries"></div>
+<button class="btn-add" onclick="addEntry()">+ Add Service</button>
+<br>
+<button class="btn-generate" onclick="generate()">Generate</button>
+<div class="output">
+    <textarea id="result" readonly onclick="copyToClipboard()"></textarea>
+    <p class="hint">Click textarea to copy</p>
+</div>
+
+<script>
+const SERVICES = {
+    bluesky: {
+        label: "Bluesky",
+        fields: [
+            { key: "bluesky_identifier", label: "Identifier", placeholder: "user.bsky.social" },
+            { key: "bluesky_app_password", label: "App Password", placeholder: "xxxx-xxxx-xxxx-xxxx", type: "password" },
+        ]
+    },
+    github_events: {
+        label: "GitHub Events",
+        fields: [
+            { key: "github_token", label: "GitHub Token", placeholder: "ghp_...", type: "password" },
+            { key: "github_username", label: "Username", placeholder: "azu" },
+        ]
+    },
+    github_search: {
+        label: "GitHub Search",
+        fields: [
+            { key: "github_token", label: "GitHub Token", placeholder: "ghp_...", type: "password" },
+            { key: "github_search_query", label: "Search Query", placeholder: 'involves:azu updated:>={{-1day}}' },
+            { key: "github_search_type", label: "Search Type", options: ["ISSUE", "REPOSITORY"] },
+        ]
+    },
+    linear: {
+        label: "Linear",
+        fields: [
+            { key: "linear_token", label: "API Token", placeholder: "lin_api_...", type: "password" },
+            { key: "linear_search_type", label: "Search Type", options: ["assigned_me", "created_by_me", "activity"] },
+        ]
+    },
+    calendar: {
+        label: "Calendar (iCal)",
+        fields: [
+            { key: "calendar_url", label: "iCal URL", placeholder: "https://calendar.google.com/calendar/ical/..." },
+        ]
+    },
+    rss: {
+        label: "RSS",
+        fields: [
+            { key: "rss_url", label: "Feed URL", placeholder: "https://example.com/feed.xml" },
+        ]
+    },
+    location: {
+        label: "Location",
+        fields: [
+            { key: "location_api_url", label: "API URL", placeholder: "https://example.com/api/locations" },
+            { key: "location_api_token", label: "API Token", placeholder: "token", type: "password" },
+            { key: "location_device_id", label: "Device ID (optional)", placeholder: "device-1", optional: true },
+        ]
+    },
+};
+
+let entryCount = 0;
+
+function createFieldHTML(field, idx) {
+    const id = `${field.key}___${idx}`;
+    if (field.options) {
+        const opts = field.options.map(o => `<option value="${o}">${o}</option>`).join("");
+        return `<div class="field-group"><label for="${id}">${field.label}</label><select id="${id}">${opts}</select></div>`;
     }
-    const allTargetIds = Array.from(new Set(targetInputSets.flat()));
-    allTargetIds.forEach((id) => {
-        const input = document.getElementById(id);
-        input.addEventListener('input', onChange);
-    });
+    const type = field.type || "text";
+    const req = field.optional ? "" : "required";
+    return `<div class="field-group"><label for="${id}">${field.label}</label><input id="${id}" type="${type}" placeholder="${field.placeholder || ""}" ${req}></div>`;
+}
+
+function addEntry() {
+    const idx = entryCount++;
+    const div = document.createElement("div");
+    div.className = "entry";
+    div.id = `entry-${idx}`;
+
+    const serviceOptions = Object.entries(SERVICES).map(([k, v]) =>
+        `<option value="${k}">${v.label}</option>`
+    ).join("");
+
+    div.innerHTML = `
+        <div class="entry-header">
+            <select id="service-${idx}" onchange="updateFields(${idx})">${serviceOptions}</select>
+            <button class="btn-remove" onclick="removeEntry(${idx})">Remove</button>
+        </div>
+        <div class="field-group">
+            <label for="name-${idx}">name (required)</label>
+            <input id="name-${idx}" type="text" placeholder="my-timeline" required>
+        </div>
+        <div id="fields-${idx}"></div>
+    `;
+    document.getElementById("entries").appendChild(div);
+    updateFields(idx);
+}
+
+function updateFields(idx) {
+    const serviceKey = document.getElementById(`service-${idx}`).value;
+    const service = SERVICES[serviceKey];
+    document.getElementById(`fields-${idx}`).innerHTML = service.fields.map(f => createFieldHTML(f, idx)).join("");
+}
+
+function removeEntry(idx) {
+    const el = document.getElementById(`entry-${idx}`);
+    if (el) el.remove();
+}
+
+function generate() {
+    const entries = document.querySelectorAll(".entry");
+    const result = [];
+    for (const entry of entries) {
+        const idx = entry.id.replace("entry-", "");
+        const name = document.getElementById(`name-${idx}`).value.trim();
+        if (!name) { alert("name is required"); return; }
+
+        const serviceKey = document.getElementById(`service-${idx}`).value;
+        const service = SERVICES[serviceKey];
+        const obj = { name };
+
+        for (const field of service.fields) {
+            const el = document.getElementById(`${field.key}___${idx}`);
+            const val = el.value.trim();
+            if (!field.optional && !val) { alert(`${field.label} is required`); return; }
+            if (val) obj[field.key] = val;
+        }
+        result.push(obj);
+    }
+    document.getElementById("result").value = `CHRONIXD_ENVS='${JSON.stringify(result)}'`;
+}
+
+function copyToClipboard() {
+    const textarea = document.getElementById("result");
+    if (!textarea.value) return;
+    navigator.clipboard.writeText(textarea.value);
+}
+
+addEntry();
 </script>
 </body>
 </html>
