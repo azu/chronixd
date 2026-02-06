@@ -12,10 +12,10 @@ export const writeServiceSchemas = async (outputDir: string, extraColumns?: Extr
     const schema: Record<string, { description: string; path: string; columns: Record<string, unknown> }> = {};
     for (const def of SCHEMA_DEFINITIONS) {
         const extra = extraColumns?.filter((e) => e.serviceDir === def.serviceDir) ?? [];
-        const mergedColumns = { ...def.columns };
-        for (const e of extra) {
-            Object.assign(mergedColumns, e.columns);
-        }
+        const mergedColumns = extra.reduce(
+            (acc, e) => ({ ...acc, ...e.columns }),
+            { ...def.columns }
+        );
         schema[def.serviceDir] = {
             description: def.description,
             path: `${def.serviceDir}/**/*.ndjson`,
