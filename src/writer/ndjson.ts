@@ -7,6 +7,7 @@ export type WriteOptions = {
     outputDir: string;
     name: string;
     service: string;
+    dryRun?: boolean;
 };
 
 const getYearMonth = (unixTimeMs: number): { year: string; month: string } => {
@@ -55,7 +56,7 @@ export const replaceRecords = async (
     records: BaseRecord[],
     filter: ReplaceFilter
 ): Promise<void> => {
-    const isDryRun = Boolean(process.env.CHRONIXD_DRY_RUN);
+    const isDryRun = options.dryRun ?? Boolean(process.env.CHRONIXD_DRY_RUN);
     const FETCH_DAYS = 28;
     const maxRecordTime = records.length > 0
         ? Math.max(...records.map((r) => r.unixTimeMs))
@@ -100,7 +101,7 @@ export const replaceRecords = async (
 };
 
 export const appendRecords = async (options: WriteOptions, records: BaseRecord[]): Promise<void> => {
-    const isDryRun = Boolean(process.env.CHRONIXD_DRY_RUN);
+    const isDryRun = options.dryRun ?? Boolean(process.env.CHRONIXD_DRY_RUN);
     if (records.length === 0) {
         return;
     }

@@ -101,25 +101,15 @@ describe("appendRecords", () => {
     });
 
     test("dry run does not create files", async () => {
-        const prev = process.env.CHRONIXD_DRY_RUN;
-        process.env.CHRONIXD_DRY_RUN = "true";
-        try {
-            const records: BaseRecord[] = [
-                { type: "test", unixTimeMs: new Date("2024-07-01T10:00:00Z").getTime() },
-            ];
-            await appendRecords(
-                { outputDir: TEST_DIR, name: "my-timeline", service: "test-service" },
-                records
-            );
-            const dirExists = await fs.access(path.join(TEST_DIR, "my-timeline")).then(() => true).catch(() => false);
-            expect(dirExists).toBe(false);
-        } finally {
-            if (prev === undefined) {
-                delete process.env.CHRONIXD_DRY_RUN;
-            } else {
-                process.env.CHRONIXD_DRY_RUN = prev;
-            }
-        }
+        const records: BaseRecord[] = [
+            { type: "test", unixTimeMs: new Date("2024-07-01T10:00:00Z").getTime() },
+        ];
+        await appendRecords(
+            { outputDir: TEST_DIR, name: "my-timeline", service: "test-service", dryRun: true },
+            records
+        );
+        const dirExists = await fs.access(path.join(TEST_DIR, "my-timeline")).then(() => true).catch(() => false);
+        expect(dirExists).toBe(false);
     });
 });
 
@@ -265,20 +255,10 @@ describe("replaceRecords", () => {
         const originalContent = existing.map(r => JSON.stringify(r)).join("\n") + "\n";
         await fs.writeFile(filePath, originalContent, "utf-8");
 
-        const prev = process.env.CHRONIXD_DRY_RUN;
-        process.env.CHRONIXD_DRY_RUN = "true";
-        try {
-            const sinceUnixTimeMs = new Date("2024-03-01T00:00:00Z").getTime();
-            await replaceRecords(options, [], { type: "calendar", sinceUnixTimeMs });
+        const sinceUnixTimeMs = new Date("2024-03-01T00:00:00Z").getTime();
+        await replaceRecords({ ...options, dryRun: true }, [], { type: "calendar", sinceUnixTimeMs });
 
-            const content = await fs.readFile(filePath, "utf-8");
-            expect(content).toBe(originalContent);
-        } finally {
-            if (prev === undefined) {
-                delete process.env.CHRONIXD_DRY_RUN;
-            } else {
-                process.env.CHRONIXD_DRY_RUN = prev;
-            }
-        }
+        const content = await fs.readFile(filePath, "utf-8");
+        expect(content).toBe(originalContent);
     });
 });
