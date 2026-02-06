@@ -2,6 +2,7 @@ import { parseArgs } from "util";
 
 export type CliOptions = {
     output: string;
+    limit: number;
 };
 
 export const parseCli = (): CliOptions => {
@@ -13,9 +14,15 @@ export const parseCli = (): CliOptions => {
                 short: "o",
                 default: "./db",
             },
+            limit: {
+                type: "string",
+                short: "l",
+                default: "1000",
+            },
         },
     });
     return {
         output: values.output ?? "./db",
+        limit: Number(values.limit ?? "1000"),
     };
 };

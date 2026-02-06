@@ -29,10 +29,11 @@ op run --env-file .env -- bun run main
 ## CLI引数
 
 ```
-chronixd --output ./path/to/db
+chronixd --output ./path/to/db --limit 1000
 ```
 
 - `--output` (`-o`): 出力ディレクトリ（デフォルト: `./db`）
+- `--limit` (`-l`): 1サービスあたりの最大取得件数（デフォルト: `1000`）
 
 ## 出力パス
 

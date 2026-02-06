@@ -25,7 +25,7 @@ const getServiceDir = (envType: string): string => {
     return SERVICE_DIR_MAP[envType] ?? envType.toLowerCase();
 };
 
-const fetchService = async (env: SupportedEnv, lastRecord: BaseRecord | null): Promise<BaseRecord[]> => {
+const fetchService = async (env: SupportedEnv, lastRecord: BaseRecord | null, options: { limit: number }): Promise<BaseRecord[]> => {
     try {
         if (isBlueSkyEnv(env)) {
             return await fetchBluesky(env, lastRecord as Parameters<typeof fetchBluesky>[1]);
@@ -42,12 +42,12 @@ const fetchService = async (env: SupportedEnv, lastRecord: BaseRecord | null): P
         } else if (isLocationEnv(env)) {
             return await fetchLocation(env, lastRecord);
         } else if (isNotionEnv(env)) {
-            return await fetchNotion(env, lastRecord);
+            return await fetchNotion(env, lastRecord, { limit: options.limit });
         }
     } catch (error) {
         if (error instanceof RetryAbleError) {
             info("retryable error", error.message);
-            return fetchService(env, lastRecord);
+            return fetchService(env, lastRecord, options);
         } else if (error instanceof RateLimitError) {
             warn("rate limit error", error.message);
             warn("treat rate limit error as success");
@@ -90,7 +90,7 @@ for (const env of envs) {
     }
     debug("env:%s, lastRecord object", envType, lastRecord);
 
-    const records = await fetchService(env, lastRecord);
+    const records = await fetchService(env, lastRecord, { limit: cliOptions.limit });
     info("env:%s, new records count: %d", envType, records.length);
     await appendRecords(
         { outputDir: cliOptions.output, name: env.name, service: serviceDir },

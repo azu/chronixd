@@ -124,7 +124,8 @@ type CacheItem = {
     unixTimeMs: number;
 };
 
-export const fetchNotion = async (env: NotionEnv, lastRecord: BaseRecord | null): Promise<NotionRecord[]> => {
+export const fetchNotion = async (env: NotionEnv, lastRecord: BaseRecord | null, options?: { limit?: number }): Promise<NotionRecord[]> => {
+    const maxPages = options?.limit ?? 1000;
     const client = new Client({ auth: env.notion_token });
     const cache = createCache<CacheItem>("notion.json");
     const oldItems = await cache.read();
@@ -147,9 +148,10 @@ export const fetchNotion = async (env: NotionEnv, lastRecord: BaseRecord | null)
     let hasMore = true;
     let startCursor: string | undefined = undefined;
 
-    while (hasMore) {
+    while (hasMore && pages.length < maxPages) {
         const response = await client.dataSources.query({
             data_source_id: env.notion_data_source_id,
+            page_size: 100,
             sorts: [{ timestamp: "last_edited_time", direction: "descending" }],
             ...(filter ? { filter } : {}),
             ...(startCursor ? { start_cursor: startCursor } : {}),
@@ -161,6 +163,10 @@ export const fetchNotion = async (env: NotionEnv, lastRecord: BaseRecord | null)
         }
         hasMore = response.has_more;
         startCursor = response.next_cursor ?? undefined;
+    }
+
+    if (hasMore && pages.length >= maxPages) {
+        logger.info("reached limit of %d pages, skipping remaining", maxPages);
     }
 
     const newPages = pages.filter((page) => {
