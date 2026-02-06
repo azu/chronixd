@@ -19,7 +19,7 @@ jobs:
           repository: ${{ vars.DATA_REPOSITORY }}
           token: ${{ secrets.DATA_REPO_TOKEN }}
           path: data-repo
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Restore cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0

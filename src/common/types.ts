@@ -49,6 +49,10 @@ export type LinearRecord = BaseRecord & {
     body?: string;
     fromState?: string;
     toState?: string;
+    estimate?: number;
+    identifier?: string;
+    priority?: number;
+    labels?: string[];
 };
 
 export type LocationRecord = BaseRecord & {

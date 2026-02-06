@@ -118,7 +118,6 @@ describe("fetchLocation", () => {
         expect(result[0].speed).toBe(1.44);
         expect(result[0].address).toBe("東京都千代田区丸の内1丁目");
         expect(result[0].poi).toBe("東京駅");
-        expect(result[0].url).toBe("https://www.google.com/maps?q=35.6812,139.7671");
         expect(result[0].unixTimeMs).toBe(new Date("2024-01-15T10:30:00Z").getTime());
 
         // Second item - San Francisco
@@ -126,7 +125,6 @@ describe("fetchLocation", () => {
         expect(result[1].latitude).toBe(37.7749);
         expect(result[1].longitude).toBe(-122.4194);
         expect(result[1].speed).toBeUndefined();
-        expect(result[1].url).toBe("https://www.google.com/maps?q=37.7749,-122.4194");
     });
 
     test("adds device_id to query when provided", async () => {
@@ -295,7 +293,6 @@ describe("fetchLocation", () => {
         expect(result[0].poi).toBe("大阪城");
         expect(result[0].latitude).toBe(34.6937);
         expect(result[0].longitude).toBe(135.5023);
-        expect(result[0].url).toBe("https://www.google.com/maps?q=34.6937,135.5023");
     });
 
     test("includes speed in m/s in record", async () => {

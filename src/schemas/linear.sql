@@ -7,5 +7,9 @@ SELECT * FROM read_ndjson('db/**/linear/**/*.ndjson', columns = {
     issueTitle: 'VARCHAR',
     body: 'VARCHAR',
     fromState: 'VARCHAR',
-    toState: 'VARCHAR'
+    toState: 'VARCHAR',
+    estimate: 'DOUBLE',
+    identifier: 'VARCHAR',
+    priority: 'INTEGER',
+    labels: 'VARCHAR[]'
 });

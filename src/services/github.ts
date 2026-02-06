@@ -210,7 +210,6 @@ async function parseEventTitle(octokit: Octokit, event: Event): Promise<string> 
             if (!parsedEvent) {
                 return `${event.type} on ${event.repo.name}`;
             }
-            // @ts-expect-error
             return compile(parsedEvent);
         }
     }

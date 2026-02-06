@@ -54,10 +54,6 @@ const createLocationId = (feature: GeoJSONFeature): string => {
     return `${timestamp}-${lat}-${lon}`;
 };
 
-const createGoogleMapsUrl = (lat: number, lon: number): string => {
-    return `https://www.google.com/maps?q=${lat},${lon}`;
-};
-
 const updateCacheItems = ({
     oldItems,
     newItems,
@@ -81,12 +77,10 @@ const formatSpeed = (speedMps: number | undefined): number | undefined => {
 
 const convertFeatureToLocationRecord = (feature: GeoJSONFeature): LocationRecord => {
     const [lon, lat] = feature.geometry.coordinates;
-    const url = createGoogleMapsUrl(lat, lon);
     const unixTimeMs = new Date(feature.properties.timestamp).getTime();
 
     return {
         type: LocationType,
-        url,
         unixTimeMs,
         latitude: lat,
         longitude: lon,

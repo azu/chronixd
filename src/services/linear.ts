@@ -8,6 +8,7 @@ export type LinearEnv = {
     linear_search_type: "assigned_me" | "created_by_me" | "activity";
 };
 export const LinearType = "Linear" as const;
+const priorityLabels = ["None", "Urgent", "High", "Medium", "Low"];
 export const isLinearEnv = (env: unknown): env is LinearEnv => {
     return typeof (env as LinearEnv).linear_token === "string" && typeof (env as LinearEnv).linear_search_type === "string";
 }
@@ -18,6 +19,10 @@ type IssueNode = {
     url: string;
     updatedAt: string;
     createdAt: string;
+    estimate: number | null;
+    identifier: string;
+    priority: number;
+    labels: { nodes: { name: string }[] };
 };
 type searchAssignedIssuesResponse = {
     data: {
@@ -46,6 +51,10 @@ type CommentNode = {
         id: string;
         title: string;
         url: string;
+        estimate: number | null;
+        identifier: string;
+        priority: number;
+        labels: { nodes: { name: string }[] };
     } | null;
 };
 type CommentsResponse = {
@@ -75,6 +84,10 @@ type IssueWithHistory = {
     id: string;
     title: string;
     url: string;
+    estimate: number | null;
+    identifier: string;
+    priority: number;
+    labels: { nodes: { name: string }[] };
     history: {
         nodes: HistoryNode[];
     };
@@ -111,6 +124,10 @@ async function searchAssignedIssues({ token }: { token: string }): Promise<Linea
         title
         url
         updatedAt
+        estimate
+        identifier
+        priority
+        labels { nodes { name } }
       }
     }
   }
@@ -129,6 +146,10 @@ async function searchAssignedIssues({ token }: { token: string }): Promise<Linea
             issueTitle: node.title,
             url: node.url,
             unixTimeMs: new Date(node.updatedAt).getTime(),
+            estimate: node.estimate ?? undefined,
+            identifier: node.identifier,
+            priority: node.priority,
+            labels: node.labels.nodes.map(l => l.name),
         };
     });
 }
@@ -155,6 +176,10 @@ async function searchCreatedByMe({ token }: { token: string }): Promise<LinearRe
         title
         url
         updatedAt
+        estimate
+        identifier
+        priority
+        labels { nodes { name } }
       }
     }
   }
@@ -173,6 +198,10 @@ async function searchCreatedByMe({ token }: { token: string }): Promise<LinearRe
             issueTitle: node.title,
             url: node.url,
             unixTimeMs: new Date(node.updatedAt).getTime(),
+            estimate: node.estimate ?? undefined,
+            identifier: node.identifier,
+            priority: node.priority,
+            labels: node.labels.nodes.map(l => l.name),
         };
     });
 }
@@ -191,7 +220,7 @@ async function searchMyComments({ token }: { token: string }): Promise<LinearRec
       id
       body
       createdAt
-      issue { id title url }
+      issue { id title url estimate identifier priority labels { nodes { name } } }
     }
   }
 }`
@@ -215,6 +244,10 @@ async function searchMyComments({ token }: { token: string }): Promise<LinearRec
             body: node.body,
             url: node.issue.url,
             unixTimeMs: new Date(node.createdAt).getTime(),
+            estimate: node.issue.estimate ?? undefined,
+            identifier: node.issue.identifier,
+            priority: node.issue.priority,
+            labels: node.issue.labels.nodes.map(l => l.name),
         }];
     });
 }
@@ -234,6 +267,10 @@ async function searchMyIssueHistory({ token }: { token: string }): Promise<Linea
         id
         title
         url
+        estimate
+        identifier
+        priority
+        labels { nodes { name } }
         history(first: 10) {
           nodes {
             id
@@ -264,22 +301,14 @@ async function searchMyIssueHistory({ token }: { token: string }): Promise<Linea
     const results: LinearRecordWithId[] = [];
     for (const issue of json.data.viewer.assignedIssues.nodes) {
         for (const history of issue.history.nodes) {
-            if (!history.actor?.isMe) continue;
+            const issueFields = {
+                estimate: issue.estimate ?? undefined,
+                identifier: issue.identifier,
+                priority: issue.priority,
+                labels: issue.labels.nodes.map(l => l.name),
+            };
 
-            if (history.fromState && history.toState) {
-                results.push({
-                    id: `history-state-${history.id}`,
-                    type: LinearType,
-                    activityType: "status_change",
-                    issueTitle: issue.title,
-                    fromState: history.fromState.name,
-                    toState: history.toState.name,
-                    url: issue.url,
-                    unixTimeMs: new Date(history.createdAt).getTime(),
-                });
-                continue;
-            }
-
+            // assign_change is recorded regardless of actor (to capture "assigned to me by others")
             if (history.fromAssignee || history.toAssignee) {
                 const from = history.fromAssignee?.name ?? "Unassigned";
                 const to = history.toAssignee?.name ?? "Unassigned";
@@ -292,12 +321,30 @@ async function searchMyIssueHistory({ token }: { token: string }): Promise<Linea
                     toState: to,
                     url: issue.url,
                     unixTimeMs: new Date(history.createdAt).getTime(),
+                    ...issueFields,
+                });
+                continue;
+            }
+
+            // other history types require actor to be the current user
+            if (!history.actor?.isMe) continue;
+
+            if (history.fromState && history.toState) {
+                results.push({
+                    id: `history-state-${history.id}`,
+                    type: LinearType,
+                    activityType: "status_change",
+                    issueTitle: issue.title,
+                    fromState: history.fromState.name,
+                    toState: history.toState.name,
+                    url: issue.url,
+                    unixTimeMs: new Date(history.createdAt).getTime(),
+                    ...issueFields,
                 });
                 continue;
             }
 
             if (history.fromPriority !== null || history.toPriority !== null) {
-                const priorityLabels = ["None", "Urgent", "High", "Medium", "Low"];
                 const from = priorityLabels[history.fromPriority ?? 0] ?? String(history.fromPriority);
                 const to = priorityLabels[history.toPriority ?? 0] ?? String(history.toPriority);
                 results.push({
@@ -309,6 +356,7 @@ async function searchMyIssueHistory({ token }: { token: string }): Promise<Linea
                     toState: to,
                     url: issue.url,
                     unixTimeMs: new Date(history.createdAt).getTime(),
+                    ...issueFields,
                 });
                 continue;
             }
@@ -333,6 +381,10 @@ async function searchMyCreatedIssues({ token }: { token: string }): Promise<Line
         title
         url
         createdAt
+        estimate
+        identifier
+        priority
+        labels { nodes { name } }
       }
     }
   }
@@ -351,6 +403,10 @@ async function searchMyCreatedIssues({ token }: { token: string }): Promise<Line
             issueTitle: node.title,
             url: node.url,
             unixTimeMs: new Date(node.createdAt).getTime(),
+            estimate: node.estimate ?? undefined,
+            identifier: node.identifier,
+            priority: node.priority,
+            labels: node.labels.nodes.map(l => l.name),
         };
     });
 }
