@@ -22,6 +22,8 @@ jobs:
         run: bun install
       - name: Lint
         run: bun run lint
+      - name: Typecheck
+        run: bun run typecheck
       - name: Test
         run: bun run test
       - name: Update

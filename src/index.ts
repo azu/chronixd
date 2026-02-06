@@ -93,9 +93,15 @@ for (const env of envs) {
     } catch (error) {
         if (error instanceof RetryAbleError) {
             info("retryable error", error.message);
-            const records = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
-            info("env:%s, new records count: %d", envType, records.length);
-            await appendRecords(writeOptions, records);
+            if (service.writeMode === "replace") {
+                const result = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
+                info("env:%s, new records count: %d", envType, result.records.length);
+                await replaceRecords(writeOptions, result.records, result.replaceFilter);
+            } else {
+                const records = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
+                info("env:%s, new records count: %d", envType, records.length);
+                await appendRecords(writeOptions, records);
+            }
         } else if (error instanceof RateLimitError) {
             warn("rate limit error", error.message);
             warn("treat rate limit error as success");

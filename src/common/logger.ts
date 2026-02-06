@@ -20,6 +20,9 @@ export const createLogger = (name: string) => {
         info: (message?: any, ...optionalParams: any[]) => {
             info(`[${name}]`, message, ...optionalParams);
         },
+        warn: (message?: any, ...optionalParams: any[]) => {
+            warn(`[${name}]`, message, ...optionalParams);
+        },
         error: (message?: any, ...optionalParams: any[]) => {
             errorLog(`[${name}]`, message, ...optionalParams);
         },

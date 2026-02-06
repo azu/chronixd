@@ -1,4 +1,4 @@
-import { expect, test, describe, mock, beforeEach, afterEach } from "bun:test";
+import { expect, test, describe, spyOn, beforeEach, afterEach } from "bun:test";
 import { fetchLocation, isLocationEnv, LocationType } from "./location.js";
 
 describe("isLocationEnv", () => {
@@ -79,28 +79,27 @@ describe("fetchLocation", () => {
         location_api_token: "test-token",
     };
 
+    let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, "fetch">>;
+
     beforeEach(() => {
         process.env.CHRONIXD_DRY_RUN = "true";
     });
 
     afterEach(() => {
         delete process.env.CHRONIXD_DRY_RUN;
-        mock.restore();
+        fetchSpy.mockRestore();
     });
 
     test("fetches and converts location data to LocationRecords", async () => {
-        const mockFetch = mock(() =>
-            Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve(mockGeoJSONResponse),
-            } as Response)
-        );
-        globalThis.fetch = mockFetch;
+        fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(mockGeoJSONResponse),
+        } as Response);
 
         const result = await fetchLocation(mockEnv, null);
 
-        expect(mockFetch).toHaveBeenCalledTimes(1);
-        const callArgs = mockFetch.mock.calls[0];
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        const callArgs = fetchSpy.mock.calls[0];
         expect(callArgs[0]).toContain("https://example.com/api/locations");
         expect(callArgs[0]).toContain("format=geojson");
         expect(callArgs[1]).toEqual({
@@ -128,13 +127,10 @@ describe("fetchLocation", () => {
     });
 
     test("adds device_id to query when provided", async () => {
-        const mockFetch = mock(() =>
-            Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve({ type: "FeatureCollection", features: [] }),
-            } as Response)
-        );
-        globalThis.fetch = mockFetch;
+        fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve({ type: "FeatureCollection", features: [] }),
+        } as Response);
 
         const envWithDevice = {
             ...mockEnv,
@@ -143,21 +139,18 @@ describe("fetchLocation", () => {
 
         await fetchLocation(envWithDevice, null);
 
-        const callUrl = mockFetch.mock.calls[0][0] as string;
+        const callUrl = fetchSpy.mock.calls[0][0] as string;
         expect(callUrl).toContain("device_id=my-device");
     });
 
     test("adds from parameter with ISO 8601 format when lastRecord exists", async () => {
-        const mockFetch = mock(() =>
-            Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve(mockGeoJSONResponse),
-            } as Response)
-        );
-        globalThis.fetch = mockFetch;
+        fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(mockGeoJSONResponse),
+        } as Response);
 
         const lastRecord = {
-            type: LocationType as const,
+            type: "Location" as typeof LocationType,
             latitude: 0,
             longitude: 0,
             unixTimeMs: new Date("2024-01-15T10:45:00Z").getTime(),
@@ -165,7 +158,7 @@ describe("fetchLocation", () => {
 
         const result = await fetchLocation(mockEnv, lastRecord);
 
-        const callUrl = mockFetch.mock.calls[0][0] as string;
+        const callUrl = fetchSpy.mock.calls[0][0] as string;
         expect(callUrl).toContain("from=2024-01-15T10%3A45%3A00.000Z");
 
         // Only the second item (11:00) should be returned
@@ -174,32 +167,26 @@ describe("fetchLocation", () => {
     });
 
     test("uses 24 hours ago as default from when lastRecord is null", async () => {
-        const mockFetch = mock(() =>
-            Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve(mockGeoJSONResponse),
-            } as Response)
-        );
-        globalThis.fetch = mockFetch;
+        fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(mockGeoJSONResponse),
+        } as Response);
 
         await fetchLocation(mockEnv, null);
 
-        const callUrl = mockFetch.mock.calls[0][0] as string;
+        const callUrl = fetchSpy.mock.calls[0][0] as string;
         expect(callUrl).toContain("from=");
         expect(callUrl).toContain("to=");
     });
 
     test("always includes from and to parameters", async () => {
-        const mockFetch = mock(() =>
-            Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve(mockGeoJSONResponse),
-            } as Response)
-        );
-        globalThis.fetch = mockFetch;
+        fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(mockGeoJSONResponse),
+        } as Response);
 
         const lastRecord = {
-            type: LocationType as const,
+            type: "Location" as typeof LocationType,
             latitude: 0,
             longitude: 0,
             unixTimeMs: new Date("2024-01-15T10:45:00Z").getTime(),
@@ -207,20 +194,17 @@ describe("fetchLocation", () => {
 
         await fetchLocation(mockEnv, lastRecord);
 
-        const callUrl = mockFetch.mock.calls[0][0] as string;
+        const callUrl = fetchSpy.mock.calls[0][0] as string;
         expect(callUrl).toContain("from=2024-01-15T10%3A45%3A00.000Z");
         expect(callUrl).toContain("to=");
     });
 
     test("throws error on API failure", async () => {
-        const mockFetch = mock(() =>
-            Promise.resolve({
-                ok: false,
-                status: 401,
-                statusText: "Unauthorized",
-            } as Response)
-        );
-        globalThis.fetch = mockFetch;
+        fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue({
+            ok: false,
+            status: 401,
+            statusText: "Unauthorized",
+        } as Response);
 
         await expect(fetchLocation(mockEnv, null)).rejects.toThrow(
             "Failed to fetch location: 401 Unauthorized"
@@ -245,13 +229,10 @@ describe("fetchLocation", () => {
             ],
         };
 
-        const mockFetch = mock(() =>
-            Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve(response),
-            } as Response)
-        );
-        globalThis.fetch = mockFetch;
+        fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(response),
+        } as Response);
 
         const result = await fetchLocation(mockEnv, null);
 
@@ -279,13 +260,10 @@ describe("fetchLocation", () => {
             ],
         };
 
-        const mockFetch = mock(() =>
-            Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve(response),
-            } as Response)
-        );
-        globalThis.fetch = mockFetch;
+        fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(response),
+        } as Response);
 
         const result = await fetchLocation(mockEnv, null);
 
@@ -314,13 +292,10 @@ describe("fetchLocation", () => {
             ],
         };
 
-        const mockFetch = mock(() =>
-            Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve(response),
-            } as Response)
-        );
-        globalThis.fetch = mockFetch;
+        fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(response),
+        } as Response);
 
         const result = await fetchLocation(mockEnv, null);
 
