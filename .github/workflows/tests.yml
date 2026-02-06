@@ -20,6 +20,8 @@ jobs:
           bun-version-file: "package.json"
       - name: Install
         run: bun install
+      - name: Lint
+        run: bun run lint
       - name: Test
         run: bun run test
       - name: Update
