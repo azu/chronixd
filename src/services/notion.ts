@@ -127,7 +127,7 @@ type CacheItem = {
 export const fetchNotion = async (env: NotionEnv, lastRecord: BaseRecord | null, options?: { limit?: number }): Promise<NotionRecord[]> => {
     const maxPages = options?.limit ?? 1000;
     const client = new Client({ auth: env.notion_token });
-    const cache = createCache<CacheItem>("notion.json");
+    const cache = createCache<CacheItem>("notion.json", { maxItems: 10000 });
     const oldItems = await cache.read();
 
     const filter = lastRecord

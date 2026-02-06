@@ -25,7 +25,8 @@ const fetchCalendar = async (env: CalendarEnv, _lastRecord: BaseRecord | null): 
         throw new Error("Calendar fetch failed");
     });
     const ics = await ical.parseICS(res);
-    const startOfToday = new Date(new Date().setHours(0, 0, 0, 0));
+    const now = new Date();
+    const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     const records = Object.values(ics)
         .filter((event) => {
             if (event.type !== "VEVENT") {

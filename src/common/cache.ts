@@ -8,9 +8,14 @@ const CACHE_DIR = process.env.CACHE_DIR || path.join(process.cwd(), "./cache");
  * store cache in CACHE_DIR
  * @param cacheFileName
  */
-export const createCache = <T>(cacheFileName: string) => {
+export const createCache = <T>(cacheFileName: string, options?: { maxItems?: number; cacheDir?: string }) => {
+    const cacheDir = options?.cacheDir ?? CACHE_DIR;
+    const trim = (items: T[]): T[] => {
+        if (!options?.maxItems || items.length <= options.maxItems) return items;
+        return items.slice(-options.maxItems);
+    };
     const read = async (): Promise<T[]> => {
-        const cachePath = path.join(CACHE_DIR, cacheFileName);
+        const cachePath = path.join(cacheDir, cacheFileName);
         try {
             const cache = await fs.readFile(cachePath, "utf-8");
             const cachedItems = JSON.parse(cache) as T[];
@@ -26,10 +31,11 @@ export const createCache = <T>(cacheFileName: string) => {
             debug("[DRY RUN] write cache", cache)
             return;
         }
-        await fs.mkdir(CACHE_DIR, { recursive: true });
-        const cachePath = path.join(CACHE_DIR, cacheFileName);
-        debug("write cache", cache)
-        await fs.writeFile(cachePath, JSON.stringify(cache), "utf-8");
+        await fs.mkdir(cacheDir, { recursive: true });
+        const cachePath = path.join(cacheDir, cacheFileName);
+        const trimmedCache = trim(cache);
+        debug("write cache", trimmedCache)
+        await fs.writeFile(cachePath, JSON.stringify(trimmedCache), "utf-8");
     }
 
     const merge = async (cache: T[]) => {

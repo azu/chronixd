@@ -249,7 +249,7 @@ export const fetchGitHubSearch = async (env: GitHubSearchEnv, _lastRecord: BaseR
         GITHUB_TOKEN: env.github_token,
         size: 20
     });
-    const cache = createCache<SearchResultItem>("github_search.json");
+    const cache = createCache<SearchResultItem>("github_search.json", { maxItems: 10000 });
     const cachedEvents = await cache.read();
     logger.info("searchResults count", searchResults.length);
     const filteredResults = searchResults.filter((result) => {

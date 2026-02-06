@@ -440,7 +440,7 @@ export const fetchLinear = async (env: LinearEnv, _lastRecord: BaseRecord | null
         type: env.linear_search_type,
         token: env.linear_token,
     });
-    const cache = createCache<LinearRecordWithId>("linear.json");
+    const cache = createCache<LinearRecordWithId>("linear.json", { maxItems: 10000 });
     const cachedEvents = await cache.read();
     logger.info("searchResults count", searchResults.length);
     const filteredResults = searchResults.filter((result) => {
