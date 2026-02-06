@@ -1,15 +1,25 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import { SCHEMA_DEFINITIONS } from "../schema/definitions.js";
+import { SCHEMA_DEFINITIONS, type ColumnSchema } from "../schema/definitions.js";
 import { info } from "../common/logger.js";
 
-export const writeServiceSchemas = async (outputDir: string): Promise<void> => {
+type ExtraColumns = {
+    serviceDir: string;
+    columns: Record<string, ColumnSchema>;
+};
+
+export const writeServiceSchemas = async (outputDir: string, extraColumns?: ExtraColumns[]): Promise<void> => {
     const schema: Record<string, { description: string; path: string; columns: Record<string, unknown> }> = {};
     for (const def of SCHEMA_DEFINITIONS) {
+        const extra = extraColumns?.filter((e) => e.serviceDir === def.serviceDir) ?? [];
+        const mergedColumns = extra.reduce(
+            (acc, e) => ({ ...acc, ...e.columns }),
+            { ...def.columns }
+        );
         schema[def.serviceDir] = {
             description: def.description,
             path: `${def.serviceDir}/**/*.ndjson`,
-            columns: def.columns,
+            columns: mergedColumns,
         };
     }
     await fs.mkdir(outputDir, { recursive: true });

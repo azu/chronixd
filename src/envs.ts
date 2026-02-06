@@ -5,8 +5,9 @@ import { isCalendarEnv, CalendarEnv, CalendarType } from "./services/calendar.js
 import { isRssEnv, RssEnv, RSSType } from "./services/rss.js";
 import { isLinearEnv, LinearEnv, LinearType } from "./services/linear.js";
 import { isLocationEnv, LocationEnv, LocationType } from "./services/location.js";
+import { isNotionEnv, NotionEnv, NotionType } from "./services/notion.js";
 
-export type SupportedEnv = (BlueSkyEnv | GitHubEnv | GitHubSearchEnv | CalendarEnv | RssEnv | LinearEnv | LocationEnv) & {
+export type SupportedEnv = (BlueSkyEnv | GitHubEnv | GitHubSearchEnv | CalendarEnv | RssEnv | LinearEnv | LocationEnv | NotionEnv) & {
     name: string;
 };
 
@@ -25,6 +26,8 @@ export const typeOfEnv = (env: SupportedEnv): string => {
         return LinearType;
     } else if (isLocationEnv(env)) {
         return LocationType;
+    } else if (isNotionEnv(env)) {
+        return NotionType;
     }
     throw new Error("unknown env type");
 };
