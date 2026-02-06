@@ -77,6 +77,6 @@ const writeAgentsMd = async (outputDir: string): Promise<void> => {
 
 const writeClaudeMd = async (outputDir: string): Promise<void> => {
     const filePath = path.join(outputDir, "CLAUDE.md");
-    await fs.writeFile(filePath, "See [AGENTS.md](./AGENTS.md)\n", "utf-8");
+    await fs.writeFile(filePath, "See @AGENTS.md\n", "utf-8");
     info("wrote %s", filePath);
 };
