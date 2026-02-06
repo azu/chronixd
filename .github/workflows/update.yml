@@ -16,7 +16,7 @@ jobs:
       - name: Checkout data repo
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          repository: ${{ vars.DATA_REPOSITORY }}
+          repository: ${{ secrets.DATA_REPOSITORY }}
           token: ${{ secrets.DATA_REPO_TOKEN }}
           path: data-repo
           persist-credentials: true
