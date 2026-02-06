@@ -77,8 +77,7 @@ describe("appendRecords", () => {
             []
         );
 
-        const dirExists = await fs.access(path.join(TEST_DIR, "my-timeline")).then(() => true).catch(() => false);
-        expect(dirExists).toBe(false);
+        await expect(fs.access(path.join(TEST_DIR, "my-timeline"))).rejects.toThrow();
     });
 
     test("sorts records by unixTimeMs ascending", async () => {
@@ -108,8 +107,7 @@ describe("appendRecords", () => {
             { outputDir: TEST_DIR, name: "my-timeline", service: "test-service", dryRun: true },
             records
         );
-        const dirExists = await fs.access(path.join(TEST_DIR, "my-timeline")).then(() => true).catch(() => false);
-        expect(dirExists).toBe(false);
+        await expect(fs.access(path.join(TEST_DIR, "my-timeline"))).rejects.toThrow();
     });
 });
 
