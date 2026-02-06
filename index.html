@@ -139,6 +139,13 @@ const SERVICES = {
             { key: "location_device_id", label: "Device ID (optional)", placeholder: "device-1", optional: true },
         ]
     },
+    notion: {
+        label: "Notion",
+        fields: [
+            { key: "notion_token", label: "Integration Token", placeholder: "ntn_...", type: "password" },
+            { key: "notion_data_source_id", label: "Data Source ID", placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" },
+        ]
+    },
 };
 
 let entryCount = 0;

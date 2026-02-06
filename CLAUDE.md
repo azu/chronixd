@@ -47,6 +47,7 @@ chronixd --output ./path/to/db
 3. `src/envs.ts` - `SupportedEnv`に型を追加、`typeOfEnv`に分岐を追加
 4. `src/index.ts` - `fetchService`に分岐を追加、`SERVICE_DIR_MAP`にマッピング追加
 5. `src/schema/definitions.ts` - スキーマ定義を追加
+6. `index.html` - ENV GeneratorのSERVICESにフィールド定義を追加
 
 ## キャッシュ
 
