@@ -12,16 +12,18 @@ The output can be queried with DuckDB.
 - iCal calendar (Google Calendar etc.)
 - RSS Feeds
 - [Location (blued-location)](https://github.com/azu/blued-location)
+- [Notion](https://www.notion.so/)
 
 ## Usage
 
 ### CLI
 
 ```bash
-CHRONIXD_ENVS='[...]' ./chronixd --output ./db
+CHRONIXD_ENVS='[...]' ./chronixd --output ./db --limit 1000
 ```
 
 - `--output` (`-o`): Output directory (default: `./db`)
+- `--limit` (`-l`): Max fetch count per service (default: `1000`)
 
 Output path: `{output}/{name}/{service}/{year}/{month}.ndjson`
 
@@ -140,7 +142,7 @@ Common fields:
 
 ## Cache
 
-Services that use cache-based deduplication (GitHub Search, Calendar, RSS, Linear, Location) store cache files in `CACHE_DIR` (default: `./.cache`).
+Services that use cache-based deduplication (GitHub Search, Calendar, RSS, Linear, Location, Notion) store cache files in `CACHE_DIR` (default: `./.cache`).
 GitHub Actions requires `actions/cache` configuration.
 
 ## Development
