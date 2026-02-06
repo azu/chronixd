@@ -1,4 +1,4 @@
-import { BaseRecord, GitHubEventRecord } from "../common/types.js";
+import { BaseRecord, GitHubEventRecord, ServiceDefinition } from "../common/types.js";
 import { Octokit } from "@octokit/rest";
 import { createLogger } from "../common/logger.js";
 import { Endpoints } from "@octokit/types";
@@ -349,3 +349,9 @@ export const fetchGitHubEvents = async (env: GitHubEnv, lastRecord: BaseRecord |
     }
     return records;
 }
+
+export const githubService: ServiceDefinition = {
+    writeMode: "append",
+    isEnv: isGithubEnv,
+    fetch: (env, lastRecord) => fetchGitHubEvents(env, lastRecord),
+};

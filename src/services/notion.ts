@@ -1,6 +1,6 @@
 import { Client } from "@notionhq/client";
 import type { PageObjectResponse, DataSourceObjectResponse } from "@notionhq/client/build/src/api-endpoints.js";
-import { BaseRecord, NotionRecord, NotionPropertyValue } from "../common/types.js";
+import { BaseRecord, NotionRecord, NotionPropertyValue, ServiceDefinition } from "../common/types.js";
 import { createCache } from "../common/cache.js";
 import { createLogger } from "../common/logger.js";
 import type { ColumnSchema } from "../schema/definitions.js";
@@ -239,4 +239,10 @@ export const fetchNotionSchema = async (env: NotionEnv): Promise<Record<string, 
         }
     }
     return propertyColumns;
+};
+
+export const notionService: ServiceDefinition = {
+    writeMode: "append",
+    isEnv: isNotionEnv,
+    fetch: (env, lastRecord, options) => fetchNotion(env, lastRecord, { limit: options.limit }),
 };

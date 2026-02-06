@@ -1,4 +1,4 @@
-import { BaseRecord, LinearRecord } from "../common/types.js";
+import { BaseRecord, LinearRecord, ServiceDefinition } from "../common/types.js";
 import { createLogger } from "../common/logger.js";
 import { createCache } from "../common/cache.ts";
 
@@ -451,3 +451,9 @@ export const fetchLinear = async (env: LinearEnv, _lastRecord: BaseRecord | null
     await cache.write(cachedEvents.concat(filteredResults));
     return filteredResults;
 }
+
+export const linearService: ServiceDefinition = {
+    writeMode: "append",
+    isEnv: isLinearEnv,
+    fetch: (env, lastRecord) => fetchLinear(env, lastRecord),
+};

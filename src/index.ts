@@ -1,18 +1,18 @@
-import { fetchBluesky, isBlueSkyEnv } from "./services/bluesky.js";
 import { parserEnvs, SupportedEnv, typeOfEnv } from "./envs.js";
-import { BaseRecord } from "./common/types.js";
+import { ServiceDefinition } from "./common/types.js";
 import { debug, info, warn } from "./common/logger.js";
-import { fetchGitHubSearch, isGitHubSearchEnv } from "./services/github_search.js";
-import { fetchGitHubEvents, isGithubEnv } from "./services/github.js";
 import { RetryAbleError } from "./common/RetryAbleError.js";
 import { RateLimitError } from "./common/RateLimitError.js";
-import { fetchCalendar, isCalendarEnv } from "./services/calendar.js";
-import { fetchRss, isRssEnv } from "./services/rss.js";
-import { fetchLinear, isLinearEnv } from "./services/linear.ts";
-import { fetchLocation, isLocationEnv } from "./services/location.js";
-import { fetchNotion, fetchNotionSchema, isNotionEnv } from "./services/notion.js";
+import { blueskyService } from "./services/bluesky.js";
+import { githubService } from "./services/github.js";
+import { githubSearchService } from "./services/github_search.js";
+import { calendarService } from "./services/calendar.js";
+import { rssService } from "./services/rss.js";
+import { linearService } from "./services/linear.ts";
+import { locationService } from "./services/location.js";
+import { notionService, fetchNotionSchema, isNotionEnv } from "./services/notion.js";
 import { parseCli } from "./cli.js";
-import { appendRecords } from "./writer/ndjson.js";
+import { appendRecords, replaceRecords } from "./writer/ndjson.js";
 import { readLastRecord } from "./writer/lastItem.js";
 import { writeServiceSchemas } from "./writer/schema.js";
 import { SERVICE_DIR_MAP } from "./schema/definitions.js";
@@ -25,37 +25,23 @@ const getServiceDir = (envType: string): string => {
     return SERVICE_DIR_MAP[envType] ?? envType.toLowerCase();
 };
 
-const fetchService = async (env: SupportedEnv, lastRecord: BaseRecord | null, options: { limit: number }): Promise<BaseRecord[]> => {
-    try {
-        if (isBlueSkyEnv(env)) {
-            return await fetchBluesky(env, lastRecord as Parameters<typeof fetchBluesky>[1]);
-        } else if (isGithubEnv(env)) {
-            return await fetchGitHubEvents(env, lastRecord);
-        } else if (isGitHubSearchEnv(env)) {
-            return await fetchGitHubSearch(env, lastRecord);
-        } else if (isCalendarEnv(env)) {
-            return await fetchCalendar(env, lastRecord);
-        } else if (isRssEnv(env)) {
-            return await fetchRss(env, lastRecord);
-        } else if (isLinearEnv(env)) {
-            return await fetchLinear(env, lastRecord);
-        } else if (isLocationEnv(env)) {
-            return await fetchLocation(env, lastRecord);
-        } else if (isNotionEnv(env)) {
-            return await fetchNotion(env, lastRecord, { limit: options.limit });
-        }
-    } catch (error) {
-        if (error instanceof RetryAbleError) {
-            info("retryable error", error.message);
-            return fetchService(env, lastRecord, options);
-        } else if (error instanceof RateLimitError) {
-            warn("rate limit error", error.message);
-            warn("treat rate limit error as success");
-            return [];
-        }
-        throw error;
+const services: ServiceDefinition[] = [
+    blueskyService,
+    githubService,
+    githubSearchService,
+    calendarService,
+    rssService,
+    linearService,
+    locationService,
+    notionService,
+];
+
+const findService = (env: SupportedEnv): ServiceDefinition => {
+    const service = services.find((s) => s.isEnv(env));
+    if (!service) {
+        throw new Error("unsupported env");
     }
-    throw new Error("unsupported env");
+    return service;
 };
 
 const cliOptions = parseCli();
@@ -90,10 +76,29 @@ for (const env of envs) {
     }
     debug("env:%s, lastRecord object", envType, lastRecord);
 
-    const records = await fetchService(env, lastRecord, { limit: cliOptions.limit });
-    info("env:%s, new records count: %d", envType, records.length);
-    await appendRecords(
-        { outputDir: cliOptions.output, name: env.name, service: serviceDir },
-        records
-    );
+    const service = findService(env);
+    const writeOptions = { outputDir: cliOptions.output, name: env.name, service: serviceDir };
+    try {
+        if (service.writeMode === "replace") {
+            const result = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
+            info("env:%s, new records count: %d", envType, result.records.length);
+            await replaceRecords(writeOptions, result.records, result.replaceFilter);
+        } else {
+            const records = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
+            info("env:%s, new records count: %d", envType, records.length);
+            await appendRecords(writeOptions, records);
+        }
+    } catch (error) {
+        if (error instanceof RetryAbleError) {
+            info("retryable error", error.message);
+            const records = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
+            info("env:%s, new records count: %d", envType, records.length);
+            await appendRecords(writeOptions, records);
+        } else if (error instanceof RateLimitError) {
+            warn("rate limit error", error.message);
+            warn("treat rate limit error as success");
+        } else {
+            throw error;
+        }
+    }
 }
