@@ -44,7 +44,7 @@ export const parserEnvs = (): SupportedEnv[] => {
     try {
         envs = JSON.parse(env) as SupportedEnv[];
     } catch {
-        throw new Error(`env CHRONIXD_ENVS is not valid JSON: ${env.slice(0, 100)}`);
+        throw new Error(`env CHRONIXD_ENVS is not valid JSON: ${env.slice(0, 5)}...${env.slice(-5)}`);
     }
     if (!Array.isArray(envs)) {
         throw new Error("env CHRONIXD_ENVS must be a JSON array");

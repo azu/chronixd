@@ -25,6 +25,19 @@ Create an app password at [Settings > App Passwords](https://bsky.app/settings/a
 
 Create a [Personal Access Token](https://github.com/settings/tokens).
 
+Fine-grained token permissions:
+
+Account permissions:
+
+- Events: Read-only (required for private repository events)
+
+Repository permissions:
+
+- Contents: Read-only
+- Issues: Read-only
+- Pull requests: Read-only
+- Metadata: Read-only (automatically granted)
+
 </details>
 
 <details>
