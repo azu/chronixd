@@ -60,7 +60,7 @@ on:
     - cron: "*/30 0-16,22-23 * * *"
   workflow_dispatch:
 env:
-  CHRONIXD_VERSION: v3.5.1
+  CHRONIXD_VERSION: v3.5.2
 
 permissions:
   contents: write
