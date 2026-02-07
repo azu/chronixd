@@ -8,7 +8,9 @@ The output can be queried with DuckDB.
 <details>
 <summary>Bluesky</summary>
 
-[bsky.app](https://bsky.app/)
+[bsky.app](https://bsky.app/) — Collect feed posts.
+
+**Credentials**
 
 Create an app password at [Settings > App Passwords](https://bsky.app/settings/app-passwords).
 
@@ -17,7 +19,9 @@ Create an app password at [Settings > App Passwords](https://bsky.app/settings/a
 <details>
 <summary>GitHub Activity / GitHub Search</summary>
 
-[github.com](https://github.com/)
+[github.com](https://github.com/) — Collect event history and search issues/repositories.
+
+**Credentials**
 
 Create a [Personal Access Token](https://github.com/settings/tokens).
 
@@ -26,7 +30,9 @@ Create a [Personal Access Token](https://github.com/settings/tokens).
 <details>
 <summary>Linear</summary>
 
-[linear.app](https://linear.app/)
+[linear.app](https://linear.app/) — Collect assigned/created issues and activity.
+
+**Credentials**
 
 Create a Personal API key at [Settings > Security & Access](https://linear.app/settings).
 
@@ -35,28 +41,34 @@ Create a Personal API key at [Settings > Security & Access](https://linear.app/s
 <details>
 <summary>iCal calendar</summary>
 
-Google Calendar etc. iCal URL only, no token required.
+Collect calendar events (next 28 days) from iCal URL. Supports Google Calendar etc.
+
+No token required. Provide the iCal URL only.
 
 </details>
 
 <details>
 <summary>RSS Feeds</summary>
 
-Feed URL only, no token required.
+Collect feed items from RSS/Atom URLs.
+
+No token required. Provide the feed URL only.
 
 </details>
 
 <details>
 <summary>Location (chronixd-location)</summary>
 
-[github.com/azu/chronixd-location](https://github.com/azu/chronixd-location)
+[github.com/azu/chronixd-location](https://github.com/azu/chronixd-location) — Collect GeoJSON location data.
 
 </details>
 
 <details>
 <summary>Notion</summary>
 
-[notion.so](https://www.notion.so/)
+[notion.so](https://www.notion.so/) — Collect pages from Notion databases.
+
+**Credentials**
 
 Create an internal integration at [My Integrations](https://www.notion.so/my-integrations). Add the integration to target pages via "Connect to".
 
@@ -65,7 +77,9 @@ Create an internal integration at [My Integrations](https://www.notion.so/my-int
 <details>
 <summary>Slack</summary>
 
-[slack.com](https://slack.com/)
+[slack.com](https://slack.com/) — Search and collect messages matching a query.
+
+**Credentials**
 
 Create a Slack App at [api.slack.com/apps](https://api.slack.com/apps). Add `search:read` to User Token Scopes, then install to your workspace to get a `xoxp-` token.
 
