@@ -4,7 +4,7 @@ import { CalendarRecord, BaseRecord, ServiceDefinition } from "../common/types.j
 export type CalendarEnv = {
     calendar_url: string;
 };
-export const CalendarType = "calendar" as const;
+export const CalendarType = "Calendar" as const;
 export const CALENDAR_FETCH_DAYS = 28;
 export const isCalendarEnv = (env: unknown): env is CalendarEnv => {
     return typeof (env as CalendarEnv).calendar_url === "string";

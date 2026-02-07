@@ -32,7 +32,7 @@ export type GitHubSearchRecord = BaseRecord & {
 };
 
 export type CalendarRecord = BaseRecord & {
-    type: "calendar";
+    type: "Calendar";
     summary: string;
     endUnixTimeMs?: number;
 };

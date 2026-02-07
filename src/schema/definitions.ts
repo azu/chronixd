@@ -61,11 +61,11 @@ export const SCHEMA_DEFINITIONS: ServiceSchemaDefinition[] = [
         },
     },
     {
-        recordType: "calendar",
+        recordType: "Calendar",
         serviceDir: "calendar",
         description: "Calendar events from iCal feeds",
         columns: {
-            type: { type: "VARCHAR", enum: ["calendar"], description: "Record type" },
+            type: { type: "VARCHAR", enum: ["Calendar"], description: "Record type" },
             unixTimeMs: { type: "BIGINT", description: "Unix timestamp in milliseconds" },
             url: { type: "VARCHAR", nullable: true, description: "Event URL" },
             summary: { type: "VARCHAR", description: "Event summary" },
