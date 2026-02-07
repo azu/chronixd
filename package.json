@@ -2,7 +2,7 @@
   "name": "chronixd",
   "module": "src/index.ts",
   "type": "module",
-  "version": "3.4.2",
+  "version": "3.4.3",
   "scripts": {
     "main": "CACHE_DIR=$(pwd)/.cache DEBUG=1 bun run src/index.ts -- --output ./db",
     "preview": "bun run dist && CACHE_DIR=$(pwd)/.cache DEBUG=1 ./chronixd --output ./db",
