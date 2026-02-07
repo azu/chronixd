@@ -181,6 +181,10 @@ export const SCHEMA_DEFINITIONS: ServiceSchemaDefinition[] = [
             editor: { type: "VARCHAR", nullable: true, description: "Editor name" },
             branch: { type: "VARCHAR", nullable: true, description: "Branch name" },
             entity: { type: "VARCHAR", nullable: true, description: "File path" },
+            aiAdditions: { type: "INTEGER", nullable: true, description: "GenAI added lines" },
+            aiDeletions: { type: "INTEGER", nullable: true, description: "GenAI deleted lines" },
+            humanAdditions: { type: "INTEGER", nullable: true, description: "Human added lines" },
+            humanDeletions: { type: "INTEGER", nullable: true, description: "Human deleted lines" },
         },
     },
 ];

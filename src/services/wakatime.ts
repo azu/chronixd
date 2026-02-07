@@ -22,6 +22,10 @@ type WakaTimeDuration = {
     project: string;
     time: number;
     duration: number;
+    ai_additions?: number;
+    ai_deletions?: number;
+    human_additions?: number;
+    human_deletions?: number;
 };
 
 type WakaTimeDurationsResponse = {
@@ -61,6 +65,10 @@ const convertToRecord = (duration: WakaTimeDuration): WakaTimeRecord => {
         unixTimeMs: Math.floor(duration.time * 1000),
         project: duration.project,
         duration: duration.duration,
+        aiAdditions: duration.ai_additions,
+        aiDeletions: duration.ai_deletions,
+        humanAdditions: duration.human_additions,
+        humanDeletions: duration.human_deletions,
     };
 };
 

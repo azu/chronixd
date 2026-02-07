@@ -98,6 +98,10 @@ export type WakaTimeRecord = BaseRecord & {
     editor?: string;
     branch?: string;
     entity?: string;
+    aiAdditions?: number;
+    aiDeletions?: number;
+    humanAdditions?: number;
+    humanDeletions?: number;
 };
 
 export type BookmarkRecord = BaseRecord & {
