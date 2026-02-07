@@ -51,12 +51,7 @@ Each entry requires a `name` field and service-specific fields:
 
 ### via GitHub Actions
 
-chronixd outputs to a separate data repository.
-
-1. Create a data repository
-2. Set `DATA_REPOSITORY` as GitHub Variable (e.g. `azu/my-data`)
-3. Set `DATA_REPO_TOKEN` as GitHub Secret (token with push access to data repo)
-4. Set `CHRONIXD_ENVS` as GitHub Secret
+1. Set `CHRONIXD_ENVS` as GitHub Secret
 
 ```yaml
 name: Update
@@ -68,17 +63,12 @@ env:
   CHRONIXD_VERSION: v3.5.1
 
 permissions:
-  contents: none
+  contents: write
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout data repo
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ vars.DATA_REPOSITORY }}
-          token: ${{ secrets.DATA_REPO_TOKEN }}
-          path: data-repo
+      - uses: actions/checkout@v4
 
       - name: Restore cache
         uses: actions/cache/restore@v4
@@ -93,7 +83,7 @@ jobs:
           chmod +x chronixd
 
       - name: Run chronixd
-        run: CACHE_DIR=$(pwd)/.cache ./chronixd --output ./data-repo/db > /dev/null 2>&1
+        run: CACHE_DIR=$(pwd)/.cache ./chronixd --output ./db > /dev/null 2>&1
         env:
           CHRONIXD_ENVS: ${{ secrets.CHRONIXD_ENVS }}
 
@@ -104,7 +94,6 @@ jobs:
           key: chronixd-cache-${{ github.run_id }}
 
       - name: Commit and push
-        working-directory: data-repo
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
