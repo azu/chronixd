@@ -26,7 +26,7 @@ CHRONIXD_ENVS='[...]' ./chronixd --output ./db --limit 1000
 - `--output` (`-o`): Output directory (default: `./db`)
 - `--limit` (`-l`): Max fetch count per service (default: `1000`)
 
-Output path: `{output}/{name}/{service}/{year}/{month}.ndjson`
+Output path: `{output}/{service}/{name}/{year}/{month}.ndjson`
 
 ### ENV Configuration
 
@@ -37,16 +37,23 @@ Each entry requires a `name` field and service-specific fields:
 ```json
 [
   {
-    "name": "my-timeline",
+    "name": "your-name",
     "bluesky_identifier": "user.bsky.social",
     "bluesky_app_password": "xxx"
   },
   {
-    "name": "my-timeline",
+    "name": "your-name",
     "github_token": "ghp_...",
-    "github_username": "azu"
+    "github_username": "username"
   }
 ]
+```
+
+Output example:
+
+```
+db/bluesky/your-name/2025/01.ndjson
+db/github-events/your-name/2025/01.ndjson
 ```
 
 ### via GitHub Actions
@@ -57,7 +64,7 @@ Each entry requires a `name` field and service-specific fields:
 name: Update
 on:
   schedule:
-    - cron: "*/30 0-16,22-23 * * *"
+    - cron: "*/30 0-16,22-23 * * *" # Every 30 minutes (UTC 0-16, 22-23 = JST 9-25)
   workflow_dispatch:
 env:
   CHRONIXD_VERSION: v3.5.2
@@ -158,7 +165,7 @@ DEBUG=1 ./chronixd --output ./db
 npx npm@latest version {patch,minor,major}
 ```
 
-`postversion` スクリプトで自動的に `git commit` → `git push --follow-tags` が実行されます。
+`postversion` script automatically runs `git commit` → `git push --follow-tags`.
 
 ## License
 
