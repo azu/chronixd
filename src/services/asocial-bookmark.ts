@@ -6,14 +6,15 @@ export type AsocialBookmarkEnv = {
     asocial_bookmark_owner: string;
     asocial_bookmark_repo: string;
     asocial_bookmark_token: string;
-    asocial_bookmark_branch?: string;
+    asocial_bookmark_branch: string;
 };
 export const BookmarkType = "Bookmark" as const;
 export const isAsocialBookmarkEnv = (env: unknown): env is AsocialBookmarkEnv => {
     return (
         typeof (env as AsocialBookmarkEnv).asocial_bookmark_owner === "string" &&
         typeof (env as AsocialBookmarkEnv).asocial_bookmark_repo === "string" &&
-        typeof (env as AsocialBookmarkEnv).asocial_bookmark_token === "string"
+        typeof (env as AsocialBookmarkEnv).asocial_bookmark_token === "string" &&
+        typeof (env as AsocialBookmarkEnv).asocial_bookmark_branch === "string"
     );
 };
 
@@ -43,7 +44,7 @@ const fetchAsocialBookmark = async (
     records: BookmarkRecord[];
     replaceFilter: { type: string; sinceUnixTimeMs: number };
 }> => {
-    const branch = env.asocial_bookmark_branch ?? "master";
+    const branch = env.asocial_bookmark_branch;
     const bookmark = new AsocialBookmark({
         github: {
             owner: env.asocial_bookmark_owner,
