@@ -6,14 +6,33 @@ The output can be queried with DuckDB.
 ## Supported Services
 
 - [Bluesky](https://bsky.app/)
-- [GitHub Activity](https://github.com/)
-- [GitHub Search](https://github.com/search)
+  <details><summary>Credentials</summary>
+
+  Create an app password at [Settings > App Passwords](https://bsky.app/settings/app-passwords).
+  </details>
+- [GitHub Activity](https://github.com/) / [GitHub Search](https://github.com/search)
+  <details><summary>Credentials</summary>
+
+  Create a [Personal Access Token](https://github.com/settings/tokens).
+  </details>
 - [Linear](https://linear.app/)
-- iCal calendar (Google Calendar etc.)
-- RSS Feeds
+  <details><summary>Credentials</summary>
+
+  Create a Personal API key at [Settings > Security & Access](https://linear.app/settings).
+  </details>
+- iCal calendar (Google Calendar etc.) — iCal URL only, no token required
+- RSS Feeds — Feed URL only, no token required
 - [Location (blued-location)](https://github.com/azu/blued-location)
 - [Notion](https://www.notion.so/)
+  <details><summary>Credentials</summary>
+
+  Create an internal integration at [My Integrations](https://www.notion.so/my-integrations). Add the integration to target pages via "Connect to".
+  </details>
 - [Slack](https://slack.com/)
+  <details><summary>Credentials</summary>
+
+  Create a Slack App at [api.slack.com/apps](https://api.slack.com/apps). Add `search:read` to User Token Scopes, then install to your workspace to get a `xoxp-` token.
+  </details>
 
 ## Usage
 
