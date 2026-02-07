@@ -88,6 +88,8 @@ const convertFeatureToLocationRecord = (feature: GeoJSONFeature): LocationRecord
         speed: formatSpeed(feature.properties.speed),
         address: feature.properties.address,
         poi: feature.properties.poi,
+        horizontalAccuracy: feature.properties.horizontal_accuracy,
+        verticalAccuracy: feature.properties.vertical_accuracy,
     };
 };
 
