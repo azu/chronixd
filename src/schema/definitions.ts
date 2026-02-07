@@ -167,6 +167,22 @@ export const SCHEMA_DEFINITIONS: ServiceSchemaDefinition[] = [
             relatedItems: { type: "VARCHAR", description: "Related items as JSON array of {title, url} objects" },
         },
     },
+    {
+        recordType: "WakaTime",
+        serviceDir: "wakatime",
+        description: "WakaTime coding durations",
+        columns: {
+            type: { type: "VARCHAR", enum: ["WakaTime"], description: "Record type" },
+            unixTimeMs: { type: "BIGINT", description: "Unix timestamp in milliseconds" },
+            url: { type: "VARCHAR", nullable: true, description: "URL" },
+            project: { type: "VARCHAR", description: "Project name" },
+            duration: { type: "DOUBLE", description: "Duration in seconds" },
+            language: { type: "VARCHAR", nullable: true, description: "Programming language" },
+            editor: { type: "VARCHAR", nullable: true, description: "Editor name" },
+            branch: { type: "VARCHAR", nullable: true, description: "Branch name" },
+            entity: { type: "VARCHAR", nullable: true, description: "File path" },
+        },
+    },
 ];
 
 export const SERVICE_DIR_MAP: Record<string, string> = Object.fromEntries(

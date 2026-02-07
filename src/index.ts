@@ -13,6 +13,7 @@ import { locationService } from "./services/location.js";
 import { notionService, fetchNotionSchema, isNotionEnv } from "./services/notion.js";
 import { slackService } from "./services/slack.js";
 import { asocialBookmarkService } from "./services/asocial-bookmark.js";
+import { wakatimeService } from "./services/wakatime.js";
 import { parseCli } from "./cli.js";
 import { appendRecords, replaceRecords } from "./writer/ndjson.js";
 import { readLastRecord } from "./writer/lastItem.js";
@@ -38,6 +39,7 @@ const services: ServiceDefinition[] = [
     notionService,
     slackService,
     asocialBookmarkService,
+    wakatimeService,
 ];
 
 const findService = (env: SupportedEnv): ServiceDefinition => {
