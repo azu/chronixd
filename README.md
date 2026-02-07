@@ -47,9 +47,9 @@ Feed URL only, no token required.
 </details>
 
 <details>
-<summary>Location (blued-location)</summary>
+<summary>Location (chronixd-location)</summary>
 
-[github.com/azu/blued-location](https://github.com/azu/blued-location)
+[github.com/azu/chronixd-location](https://github.com/azu/chronixd-location)
 
 </details>
 
