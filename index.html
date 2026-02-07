@@ -79,7 +79,7 @@
 <h1>chronixd ENV Generator</h1>
 <p class="desc">Generate <code>CHRONIXD_ENVS</code> JSON for chronixd configuration.</p>
 
-<div class="entry import-section" style="background: #f0f4ff; border-color: #b0c4ff;">
+<div class="entry" style="background: #f0f4ff; border-color: #b0c4ff;">
     <label for="import-input">Import existing CHRONIXD_ENVS</label>
     <textarea id="import-input" style="min-height: 60px; cursor: text;" placeholder='CHRONIXD_ENVS=&#39;[{"name":"..."}]&#39; or [{"name":"..."}]'></textarea>
     <button class="btn-add" style="margin-top: 8px; margin-bottom: 0;" onclick="importEnvs()">Import</button>
@@ -220,7 +220,7 @@ function removeEntry(idx) {
 }
 
 function generate() {
-    const entries = document.querySelectorAll(".entry:not(.import-section)");
+    const entries = document.querySelectorAll("#entries > .entry");
     const result = [];
     for (const entry of entries) {
         const idx = entry.id.replace("entry-", "");
