@@ -1,4 +1,4 @@
-import { BaseRecord, WakaTimeRecord, ServiceDefinition, FetchOptions } from "../common/types.js";
+import { BaseRecord, WakaTimeRecord, ServiceDefinition, FetchOptions, ReplaceFilter } from "../common/types.js";
 import { createCache } from "../common/cache.js";
 import { createLogger } from "../common/logger.js";
 
@@ -76,17 +76,23 @@ export const fetchWakaTime = async (
     env: WakaTimeEnv,
     lastRecord: BaseRecord | null,
     options: FetchOptions
-): Promise<WakaTimeRecord[]> => {
+): Promise<{ records: WakaTimeRecord[]; replaceFilter: ReplaceFilter }> => {
     const now = new Date();
     const today = formatDate(now);
 
+    // Durations APIは日単位なので、fromDateを日の先頭に切り捨てて当日のデータを再取得する
     const fromDate = lastRecord
-        ? new Date(lastRecord.unixTimeMs + 24 * 60 * 60 * 1000)
+        ? new Date(new Date(lastRecord.unixTimeMs).setHours(0, 0, 0, 0))
         : new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    const replaceFilter: ReplaceFilter = {
+        type: WakaTimeType,
+        sinceUnixTimeMs: fromDate.getTime(),
+    };
 
     const dates = getDatesInRange(fromDate, now);
     if (dates.length === 0) {
-        return [];
+        return { records: [], replaceFilter };
     }
 
     const cache = createCache<CacheItem>("wakatime.json");
@@ -140,11 +146,11 @@ export const fetchWakaTime = async (
     ];
     await cache.write(updatedCache);
 
-    return records;
+    return { records, replaceFilter };
 };
 
 export const wakatimeService: ServiceDefinition = {
-    writeMode: "append",
+    writeMode: "replace",
     isEnv: isWakaTimeEnv,
     fetch: (env, lastRecord, options) => fetchWakaTime(env, lastRecord, options),
 };
