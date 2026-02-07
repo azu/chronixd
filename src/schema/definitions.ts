@@ -150,6 +150,20 @@ export const SCHEMA_DEFINITIONS: ServiceSchemaDefinition[] = [
             iid: { type: "VARCHAR", description: "Slack message unique identifier" },
         },
     },
+    {
+        recordType: "Bookmark",
+        serviceDir: "asocial-bookmark",
+        description: "Bookmarks from asocial-bookmark repository",
+        columns: {
+            type: { type: "VARCHAR", enum: ["Bookmark"], description: "Record type" },
+            unixTimeMs: { type: "BIGINT", description: "Unix timestamp in milliseconds" },
+            url: { type: "VARCHAR", nullable: true, description: "Bookmarked URL" },
+            title: { type: "VARCHAR", description: "Bookmark title" },
+            content: { type: "VARCHAR", description: "Bookmark description" },
+            tags: { type: "VARCHAR[]", description: "Bookmark tags" },
+            relatedItems: { type: "VARCHAR", description: "Related items as JSON array of {title, url} objects" },
+        },
+    },
 ];
 
 export const SERVICE_DIR_MAP: Record<string, string> = Object.fromEntries(

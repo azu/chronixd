@@ -7,8 +7,9 @@ import { isLinearEnv, LinearEnv, LinearType } from "./services/linear.js";
 import { isLocationEnv, LocationEnv, LocationType } from "./services/location.js";
 import { isNotionEnv, NotionEnv, NotionType } from "./services/notion.js";
 import { isSlackEnv, SlackEnv, SlackType } from "./services/slack.js";
+import { isAsocialBookmarkEnv, AsocialBookmarkEnv, BookmarkType } from "./services/asocial-bookmark.js";
 
-export type SupportedEnv = (BlueSkyEnv | GitHubEnv | GitHubSearchEnv | CalendarEnv | RssEnv | LinearEnv | LocationEnv | NotionEnv | SlackEnv) & {
+export type SupportedEnv = (BlueSkyEnv | GitHubEnv | GitHubSearchEnv | CalendarEnv | RssEnv | LinearEnv | LocationEnv | NotionEnv | SlackEnv | AsocialBookmarkEnv) & {
     name: string;
 };
 
@@ -31,6 +32,8 @@ export const typeOfEnv = (env: SupportedEnv): string => {
         return NotionType;
     } else if (isSlackEnv(env)) {
         return SlackType;
+    } else if (isAsocialBookmarkEnv(env)) {
+        return BookmarkType;
     }
     throw new Error("unknown env type");
 };
