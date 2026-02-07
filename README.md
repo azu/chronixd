@@ -13,6 +13,7 @@ The output can be queried with DuckDB.
 - RSS Feeds
 - [Location (blued-location)](https://github.com/azu/blued-location)
 - [Notion](https://www.notion.so/)
+- [Slack](https://slack.com/)
 
 ## Usage
 
@@ -165,10 +166,10 @@ DEBUG=1 ./chronixd --output ./db
 ## Release Flow
 
 ```
-npm version {patch,minor,major}
-npm run sync-version
-git push --follow-tags
+npx npm@latest version {patch,minor,major}
 ```
+
+`postversion` スクリプトで自動的に `git commit` → `git push --follow-tags` が実行されます。
 
 ## License
 

@@ -15,7 +15,8 @@
     "version:patch": "npx npm@latest version patch",
     "version:minor": "npx npm@latest version minor",
     "version:major": "npx npm@latest version major",
-    "postversion": "git push --follow-tags"
+    "sync-version": "bash scripts/sync-version.sh",
+    "postversion": "npm run sync-version && git commit -m 'chore: sync version' && git push --follow-tags"
   },
   "devDependencies": {
     "@types/bun": "^1.3.0",
