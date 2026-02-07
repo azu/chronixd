@@ -98,6 +98,22 @@ Create a Slack App at [api.slack.com/apps](https://api.slack.com/apps). Add `sea
 
 </details>
 
+<details>
+<summary>Bookmarks (asocial-bookmark)</summary>
+
+[github.com/azu/asocial-bookmark](https://github.com/azu/asocial-bookmark) — Collect bookmarks from a GitHub repository managed by asocial-bookmark.
+
+**Credentials**
+
+Create a [fine-grained Personal Access Token](https://github.com/settings/tokens?type=beta) scoped to the bookmark repository.
+
+Repository permissions:
+
+- Contents: Read-only
+- Metadata: Read-only (automatically granted)
+
+</details>
+
 ## Usage
 
 ### CLI

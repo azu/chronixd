@@ -49,6 +49,7 @@ chronixd --output ./path/to/db --limit 1000
 4. `src/index.ts` - `fetchService`に分岐を追加、`SERVICE_DIR_MAP`にマッピング追加
 5. `src/schema/definitions.ts` - スキーマ定義を追加
 6. `index.html` - ENV GeneratorのSERVICESにフィールド定義を追加
+7. `README.md` - Supported Servicesセクションにサービス説明を追加
 
 ## リリース
 
