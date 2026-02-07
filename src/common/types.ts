@@ -87,6 +87,14 @@ export type SlackRecord = BaseRecord & {
     iid: string;
 };
 
+export type BookmarkRecord = BaseRecord & {
+    type: "Bookmark";
+    title: string;
+    content: string;
+    tags: string[];
+    relatedItems: { title: string; url: string }[];
+};
+
 export type AnyRecord =
     | BlueskyRecord
     | GitHubEventRecord
@@ -96,7 +104,8 @@ export type AnyRecord =
     | LinearRecord
     | LocationRecord
     | NotionRecord
-    | SlackRecord;
+    | SlackRecord
+    | BookmarkRecord;
 
 export type ReplaceFilter = {
     type: string;
