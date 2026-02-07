@@ -34,6 +34,7 @@ export type GitHubSearchRecord = BaseRecord & {
 export type CalendarRecord = BaseRecord & {
     type: "calendar";
     summary: string;
+    endUnixTimeMs?: number;
 };
 
 export type RssRecord = BaseRecord & {
@@ -63,6 +64,8 @@ export type LocationRecord = BaseRecord & {
     speed?: number;
     address?: string;
     poi?: string;
+    horizontalAccuracy?: number;
+    verticalAccuracy?: number;
 };
 
 export type NotionPropertyValue = string | number | boolean | string[] | { start: string; end?: string };

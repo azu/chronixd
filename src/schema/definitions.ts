@@ -69,6 +69,7 @@ export const SCHEMA_DEFINITIONS: ServiceSchemaDefinition[] = [
             unixTimeMs: { type: "BIGINT", description: "Unix timestamp in milliseconds" },
             url: { type: "VARCHAR", nullable: true, description: "Event URL" },
             summary: { type: "VARCHAR", description: "Event summary" },
+            endUnixTimeMs: { type: "BIGINT", nullable: true, description: "Event end time as Unix timestamp in milliseconds" },
         },
     },
     {
@@ -116,6 +117,8 @@ export const SCHEMA_DEFINITIONS: ServiceSchemaDefinition[] = [
             speed: { type: "DOUBLE", nullable: true, description: "Speed" },
             address: { type: "VARCHAR", nullable: true, description: "Reverse geocoded address" },
             poi: { type: "VARCHAR", nullable: true, description: "Point of interest" },
+            horizontalAccuracy: { type: "DOUBLE", nullable: true, description: "Horizontal accuracy in meters" },
+            verticalAccuracy: { type: "DOUBLE", nullable: true, description: "Vertical accuracy in meters" },
         },
     },
     {

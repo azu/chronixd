@@ -43,6 +43,7 @@ const fetchCalendar = async (env: CalendarEnv, _lastRecord: BaseRecord | null): 
                 summary: event.summary,
                 url: event.url,
                 unixTimeMs: event.start.getTime(),
+                endUnixTimeMs: event.end ? event.end.getTime() : undefined,
             } satisfies CalendarRecord;
         });
     return {
