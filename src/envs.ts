@@ -37,10 +37,18 @@ export const typeOfEnv = (env: SupportedEnv): string => {
 
 export const parserEnvs = (): SupportedEnv[] => {
     const env = process.env.CHRONIXD_ENVS;
-    if (env === undefined) {
-        throw new Error("env CHRONIXD_ENVS is undefined");
+    if (!env) {
+        throw new Error("env CHRONIXD_ENVS is not set or empty. Set CHRONIXD_ENVS to a JSON array of service configurations.");
     }
-    const envs = JSON.parse(env) as SupportedEnv[];
+    let envs: SupportedEnv[];
+    try {
+        envs = JSON.parse(env) as SupportedEnv[];
+    } catch {
+        throw new Error(`env CHRONIXD_ENVS is not valid JSON: ${env.slice(0, 100)}`);
+    }
+    if (!Array.isArray(envs)) {
+        throw new Error("env CHRONIXD_ENVS must be a JSON array");
+    }
     for (const e of envs) {
         if (typeof e.name !== "string" || e.name.length === 0) {
             throw new Error("env.name is required");
