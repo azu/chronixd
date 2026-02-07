@@ -70,7 +70,15 @@ ${serviceList}
 ## Query Examples
 
 \`\`\`sql
--- All records from a specific service
+-- Load views for convenient table names
+.read views.sql
+
+-- Query using view names
+SELECT * FROM ${exampleService.serviceDir.replace(/-/g, "_")} ORDER BY unixTimeMs DESC LIMIT 10;
+\`\`\`
+
+\`\`\`sql
+-- All records from a specific service (without views)
 SELECT * FROM read_ndjson('${examplePath}');
 
 -- Latest 100 records across all services
