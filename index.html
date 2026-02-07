@@ -245,7 +245,7 @@ function generate() {
         }
         result.push(obj);
     }
-    document.getElementById("result").value = `CHRONIXD_ENVS='${JSON.stringify(result)}'`;
+    document.getElementById("result").value = JSON.stringify(result);
 }
 
 function copyToClipboard() {
