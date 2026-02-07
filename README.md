@@ -5,34 +5,71 @@ The output can be queried with DuckDB.
 
 ## Supported Services
 
-- [Bluesky](https://bsky.app/)
-  <details><summary>Credentials</summary>
+<details>
+<summary>Bluesky</summary>
 
-  Create an app password at [Settings > App Passwords](https://bsky.app/settings/app-passwords).
-  </details>
-- [GitHub Activity](https://github.com/) / [GitHub Search](https://github.com/search)
-  <details><summary>Credentials</summary>
+[bsky.app](https://bsky.app/)
 
-  Create a [Personal Access Token](https://github.com/settings/tokens).
-  </details>
-- [Linear](https://linear.app/)
-  <details><summary>Credentials</summary>
+Create an app password at [Settings > App Passwords](https://bsky.app/settings/app-passwords).
 
-  Create a Personal API key at [Settings > Security & Access](https://linear.app/settings).
-  </details>
-- iCal calendar (Google Calendar etc.) — iCal URL only, no token required
-- RSS Feeds — Feed URL only, no token required
-- [Location (blued-location)](https://github.com/azu/blued-location)
-- [Notion](https://www.notion.so/)
-  <details><summary>Credentials</summary>
+</details>
 
-  Create an internal integration at [My Integrations](https://www.notion.so/my-integrations). Add the integration to target pages via "Connect to".
-  </details>
-- [Slack](https://slack.com/)
-  <details><summary>Credentials</summary>
+<details>
+<summary>GitHub Activity / GitHub Search</summary>
 
-  Create a Slack App at [api.slack.com/apps](https://api.slack.com/apps). Add `search:read` to User Token Scopes, then install to your workspace to get a `xoxp-` token.
-  </details>
+[github.com](https://github.com/)
+
+Create a [Personal Access Token](https://github.com/settings/tokens).
+
+</details>
+
+<details>
+<summary>Linear</summary>
+
+[linear.app](https://linear.app/)
+
+Create a Personal API key at [Settings > Security & Access](https://linear.app/settings).
+
+</details>
+
+<details>
+<summary>iCal calendar</summary>
+
+Google Calendar etc. iCal URL only, no token required.
+
+</details>
+
+<details>
+<summary>RSS Feeds</summary>
+
+Feed URL only, no token required.
+
+</details>
+
+<details>
+<summary>Location (blued-location)</summary>
+
+[github.com/azu/blued-location](https://github.com/azu/blued-location)
+
+</details>
+
+<details>
+<summary>Notion</summary>
+
+[notion.so](https://www.notion.so/)
+
+Create an internal integration at [My Integrations](https://www.notion.so/my-integrations). Add the integration to target pages via "Connect to".
+
+</details>
+
+<details>
+<summary>Slack</summary>
+
+[slack.com](https://slack.com/)
+
+Create a Slack App at [api.slack.com/apps](https://api.slack.com/apps). Add `search:read` to User Token Scopes, then install to your workspace to get a `xoxp-` token.
+
+</details>
 
 ## Usage
 
