@@ -90,6 +90,20 @@ export type SlackRecord = BaseRecord & {
     iid: string;
 };
 
+export type WakaTimeRecord = BaseRecord & {
+    type: "WakaTime";
+    project: string;
+    duration: number;
+    language?: string;
+    editor?: string;
+    branch?: string;
+    entity?: string;
+    aiAdditions?: number;
+    aiDeletions?: number;
+    humanAdditions?: number;
+    humanDeletions?: number;
+};
+
 export type BookmarkRecord = BaseRecord & {
     type: "Bookmark";
     title: string;
@@ -108,7 +122,8 @@ export type AnyRecord =
     | LocationRecord
     | NotionRecord
     | SlackRecord
-    | BookmarkRecord;
+    | BookmarkRecord
+    | WakaTimeRecord;
 
 export type ReplaceFilter = {
     type: string;

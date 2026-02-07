@@ -99,6 +99,17 @@ Create a Slack App at [api.slack.com/apps](https://api.slack.com/apps). Add `sea
 </details>
 
 <details>
+<summary>WakaTime</summary>
+
+[wakatime.com](https://wakatime.com/) — Collect coding duration data.
+
+**Credentials**
+
+Get your API key from [WakaTime Settings](https://wakatime.com/settings/api-key).
+
+</details>
+
+<details>
 <summary>Bookmarks (asocial-bookmark)</summary>
 
 [github.com/azu/asocial-bookmark](https://github.com/azu/asocial-bookmark) — Collect bookmarks from a GitHub repository managed by asocial-bookmark.
