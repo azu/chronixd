@@ -1,6 +1,7 @@
 import { parserEnvs, SupportedEnv, typeOfEnv } from "./envs.js";
 import { ServiceDefinition } from "./common/types.js";
-import { debug, info, warn } from "./common/logger.js";
+import { debug, errorLog, info, warn } from "./common/logger.js";
+import { installLogInterceptor, runWithLogBuffer } from "./common/buffered-logger.js";
 import { RetryAbleError } from "./common/RetryAbleError.js";
 import { RateLimitError } from "./common/RateLimitError.js";
 import { blueskyService } from "./services/bluesky.js";
@@ -19,6 +20,8 @@ import { appendRecords, replaceRecords } from "./writer/ndjson.js";
 import { readLastRecord } from "./writer/lastItem.js";
 import { writeServiceSchemas } from "./writer/schema.js";
 import { SERVICE_DIR_MAP } from "./schema/definitions.js";
+
+installLogInterceptor();
 
 if (Boolean(process.env.CHRONIXD_DRY_RUN)) {
     info("DRY_RUN mode");
@@ -67,50 +70,85 @@ for (const env of envs) {
     }
 }
 await writeServiceSchemas(cliOptions.output, { activeServiceDirs, extraColumns });
-for (const env of envs) {
+
+const processEnv = async (env: SupportedEnv): Promise<void> => {
     const envType = typeOfEnv(env);
     const serviceDir = getServiceDir(envType);
-    const lastRecord = await readLastRecord({
-        outputDir: cliOptions.output,
-        name: env.name,
-        service: serviceDir,
-    });
-    if (lastRecord?.unixTimeMs) {
-        info("env:%s, last record exists at %s", envType, new Date(lastRecord.unixTimeMs).toISOString());
-    } else {
-        info("env:%s, last record not exists", envType);
-    }
-    debug("env:%s, lastRecord object", envType, lastRecord);
+    const label = `${envType}/${env.name}`;
 
-    const service = findService(env);
-    const writeOptions = { outputDir: cliOptions.output, name: env.name, service: serviceDir };
-    try {
-        if (service.writeMode === "replace") {
-            const result = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
-            info("env:%s, new records count: %d", envType, result.records.length);
-            await replaceRecords(writeOptions, result.records, result.replaceFilter);
+    await runWithLogBuffer(label, async () => {
+        const lastRecord = await readLastRecord({
+            outputDir: cliOptions.output,
+            name: env.name,
+            service: serviceDir,
+        });
+        if (lastRecord?.unixTimeMs) {
+            info("last record exists at %s", new Date(lastRecord.unixTimeMs).toISOString());
         } else {
-            const records = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
-            info("env:%s, new records count: %d", envType, records.length);
-            await appendRecords(writeOptions, records);
+            info("last record not exists");
         }
-    } catch (error) {
-        if (error instanceof RetryAbleError) {
-            info("retryable error", error.message);
+        debug("lastRecord object", lastRecord);
+
+        const service = findService(env);
+        const writeOptions = { outputDir: cliOptions.output, name: env.name, service: serviceDir };
+        try {
             if (service.writeMode === "replace") {
                 const result = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
-                info("env:%s, new records count: %d", envType, result.records.length);
+                info("new records count: %d", result.records.length);
                 await replaceRecords(writeOptions, result.records, result.replaceFilter);
             } else {
                 const records = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
-                info("env:%s, new records count: %d", envType, records.length);
+                info("new records count: %d", records.length);
                 await appendRecords(writeOptions, records);
             }
-        } else if (error instanceof RateLimitError) {
-            warn("rate limit error", error.message);
-            warn("treat rate limit error as success");
-        } else {
-            throw error;
+        } catch (error) {
+            if (error instanceof RetryAbleError) {
+                info("retryable error", error.message);
+                if (service.writeMode === "replace") {
+                    const result = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
+                    info("new records count: %d", result.records.length);
+                    await replaceRecords(writeOptions, result.records, result.replaceFilter);
+                } else {
+                    const records = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
+                    info("new records count: %d", records.length);
+                    await appendRecords(writeOptions, records);
+                }
+            } else if (error instanceof RateLimitError) {
+                warn("rate limit error", error.message);
+                warn("treat rate limit error as success");
+            } else {
+                throw error;
+            }
         }
+    });
+};
+
+// Group envs by service type: same type runs sequentially (cache safety), different types run in parallel
+const envsByType = new Map<string, SupportedEnv[]>();
+for (const env of envs) {
+    const envType = typeOfEnv(env);
+    const existing = envsByType.get(envType) ?? [];
+    existing.push(env);
+    envsByType.set(envType, existing);
+}
+
+const groupResults = await Promise.allSettled(
+    [...envsByType.values()].map(async (groupEnvs) => {
+        for (const env of groupEnvs) {
+            await processEnv(env);
+        }
+    })
+);
+
+const failures: string[] = [];
+for (const [i, result] of groupResults.entries()) {
+    if (result.status === "rejected") {
+        const groupEnvs = [...envsByType.values()][i];
+        const envType = typeOfEnv(groupEnvs[0]);
+        errorLog("FAILED: %s: %s", envType, result.reason);
+        failures.push(envType);
     }
+}
+if (failures.length > 0) {
+    throw new Error(`Failed services: ${failures.join(", ")}`);
 }
