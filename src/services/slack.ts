@@ -1,4 +1,4 @@
-import { BaseRecord, SlackRecord, ServiceDefinition, FetchOptions } from "../common/types.js";
+import { BaseRecord, SlackRecord, SlackAttachment, ServiceDefinition, FetchOptions } from "../common/types.js";
 import { createLogger } from "../common/logger.js";
 import { createCache } from "../common/cache.ts";
 
@@ -16,6 +16,15 @@ export const isSlackEnv = (env: unknown): env is SlackEnv => {
     return typeof (env as SlackEnv).slack_token === "string" && typeof (env as SlackEnv).slack_query === "string";
 };
 
+type SlackRawAttachment = {
+    title?: string;
+    title_link?: string;
+    text?: string;
+    from_url?: string;
+    image_url?: string;
+    service_name?: string;
+};
+
 type SlackMessage = {
     iid: string;
     ts: string;
@@ -28,6 +37,7 @@ type SlackMessage = {
         id: string;
         name: string;
     };
+    attachments?: SlackRawAttachment[];
 };
 
 type SlackSearchResponse = {
@@ -136,6 +146,17 @@ export const fetchSlack = async (
                 break;
             }
 
+            const attachments: SlackAttachment[] | undefined = match.attachments
+                ?.map((a) => ({
+                    ...(a.title !== undefined && { title: a.title }),
+                    ...(a.title_link !== undefined && { titleLink: a.title_link }),
+                    ...(a.text !== undefined && { text: a.text }),
+                    ...(a.from_url !== undefined && { fromUrl: a.from_url }),
+                    ...(a.image_url !== undefined && { imageUrl: a.image_url }),
+                    ...(a.service_name !== undefined && { serviceName: a.service_name }),
+                }))
+                .filter((a) => Object.keys(a).length > 0);
+
             allRecords.push({
                 type: SlackType,
                 text: match.text,
@@ -149,6 +170,7 @@ export const fetchSlack = async (
                 iid: match.iid,
                 url: match.permalink,
                 unixTimeMs,
+                ...(attachments && attachments.length > 0 && { attachments }),
             });
 
             if (allRecords.length >= options.limit) {

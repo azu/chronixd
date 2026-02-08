@@ -77,6 +77,15 @@ export type NotionRecord = BaseRecord & {
     properties: Record<string, NotionPropertyValue>;
 };
 
+export type SlackAttachment = {
+    title?: string;
+    titleLink?: string;
+    text?: string;
+    fromUrl?: string;
+    imageUrl?: string;
+    serviceName?: string;
+};
+
 export type SlackRecord = BaseRecord & {
     type: "Slack";
     text: string;
@@ -88,6 +97,7 @@ export type SlackRecord = BaseRecord & {
     team: string;
     ts: string;
     iid: string;
+    attachments?: SlackAttachment[];
 };
 
 export type WakaTimeRecord = BaseRecord & {

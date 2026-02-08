@@ -151,6 +151,7 @@ export const SCHEMA_DEFINITIONS: ServiceSchemaDefinition[] = [
             team: { type: "VARCHAR", description: "Workspace team ID" },
             ts: { type: "VARCHAR", description: "Slack message timestamp ID" },
             iid: { type: "VARCHAR", description: "Slack message unique identifier" },
+            attachments: { type: "VARCHAR", nullable: true, description: "URL unfurl attachments as JSON array. Each element has title, titleLink, text, fromUrl, imageUrl, serviceName" },
         },
     },
     {
