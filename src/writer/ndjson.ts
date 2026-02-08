@@ -79,10 +79,13 @@ export const replaceRecords = async (
         const dir = path.join(options.outputDir, options.service, options.name, year);
         const filePath = path.join(dir, `${month}.ndjson`);
         const existing = await readNdjsonFile(filePath);
-        const kept = existing.filter((r) => {
-            return !(r.type === filter.type && r.unixTimeMs >= filter.sinceUnixTimeMs);
-        });
         const newRecords = newRecordsByKey.get(key) ?? [];
+        const newRecordTimes = new Set(newRecords.map((r) => r.unixTimeMs));
+        const kept = existing.filter((r) => {
+            if (r.type === filter.type && r.unixTimeMs >= filter.sinceUnixTimeMs) return false;
+            if (r.type === filter.type && newRecordTimes.has(r.unixTimeMs)) return false;
+            return true;
+        });
         const merged = [...kept, ...newRecords].toSorted((a, b) => a.unixTimeMs - b.unixTimeMs);
         if (isDryRun) {
             const dryMergedLength = kept.length + newRecords.length;

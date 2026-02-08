@@ -259,4 +259,66 @@ describe("replaceRecords", () => {
         const content = await fs.readFile(filePath, "utf-8");
         expect(content).toBe(originalContent);
     });
+
+    test("clamps records with unixTimeMs before sinceUnixTimeMs into the sinceUnixTimeMs month", async () => {
+        // JST 2024-04-01 08:00 = UTC 2024-03-31 23:00
+        // ソース側(JST)では4月だが、UTC月では3月になるレコード
+        const sinceUnixTimeMs = new Date("2024-04-01T00:00:00Z").getTime();
+        const recordBeforeSince: BaseRecord = {
+            type: "Bookmark",
+            unixTimeMs: new Date("2024-03-31T23:00:00Z").getTime(),
+        };
+        const recordInApril: BaseRecord = {
+            type: "Bookmark",
+            unixTimeMs: new Date("2024-04-15T10:00:00Z").getTime(),
+        };
+
+        await replaceRecords(options, [recordBeforeSince, recordInApril], {
+            type: "Bookmark",
+            sinceUnixTimeMs,
+        });
+
+        // クランプにより、3月UTCのレコードが4月ファイルに配置される
+        const aprFile = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "04.ndjson");
+        const aprContent = await fs.readFile(aprFile, "utf-8");
+        const aprLines = aprContent.trimEnd().split("\n").map(l => JSON.parse(l));
+        expect(aprLines.length).toBe(2);
+        expect(aprLines[0].unixTimeMs).toBe(recordBeforeSince.unixTimeMs);
+        expect(aprLines[1].unixTimeMs).toBe(recordInApril.unixTimeMs);
+
+        // 3月ファイルは作成されない
+        const marFile = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "03.ndjson");
+        await expect(fs.access(marFile)).rejects.toThrow();
+    });
+
+    test("no duplicates when re-running with existing clamped record", async () => {
+        // 初回実行: sinceUnixTimeMs以前のレコードがクランプされて4月ファイルに保存
+        const sinceUnixTimeMs = new Date("2024-04-01T00:00:00Z").getTime();
+        const recordBeforeSince: BaseRecord = {
+            type: "Bookmark",
+            unixTimeMs: new Date("2024-03-31T23:00:00Z").getTime(),
+        };
+        const recordInApril: BaseRecord = {
+            type: "Bookmark",
+            unixTimeMs: new Date("2024-04-10T10:00:00Z").getTime(),
+        };
+
+        await replaceRecords(options, [recordBeforeSince, recordInApril], {
+            type: "Bookmark",
+            sinceUnixTimeMs,
+        });
+
+        // 2回目実行: 同じデータで再実行 → 重複しない
+        await replaceRecords(options, [recordBeforeSince, recordInApril], {
+            type: "Bookmark",
+            sinceUnixTimeMs,
+        });
+
+        const aprFile = path.join(TEST_DIR, "test-service", "my-timeline", "2024", "04.ndjson");
+        const content = await fs.readFile(aprFile, "utf-8");
+        const lines = content.trimEnd().split("\n").map(l => JSON.parse(l));
+        expect(lines.length).toBe(2);
+        expect(lines[0].unixTimeMs).toBe(recordBeforeSince.unixTimeMs);
+        expect(lines[1].unixTimeMs).toBe(recordInApril.unixTimeMs);
+    });
 });
