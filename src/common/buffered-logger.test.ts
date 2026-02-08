@@ -81,10 +81,10 @@ describe("buffered-logger", () => {
         ]);
 
         const allInfoArgs = infoOutput.map((args) => args[0]);
+        expect(allInfoArgs).toContain("--- ServiceA ---");
+        expect(allInfoArgs).toContain("--- ServiceB ---");
         const aHeaderIdx = allInfoArgs.indexOf("--- ServiceA ---");
         const bHeaderIdx = allInfoArgs.indexOf("--- ServiceB ---");
-        expect(aHeaderIdx).not.toBe(-1);
-        expect(bHeaderIdx).not.toBe(-1);
 
         // A's logs are consecutive with prefix
         expect(allInfoArgs[aHeaderIdx + 1]).toBe("[ServiceA] A-1");
