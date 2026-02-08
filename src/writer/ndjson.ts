@@ -84,8 +84,15 @@ export const replaceRecords = async (
         const newRecords = newRecordsByKey.get(key) ?? [];
         const merged = [...kept, ...newRecords].toSorted((a, b) => a.unixTimeMs - b.unixTimeMs);
         if (isDryRun) {
-            const removed = existing.length - kept.length;
-            info(`[DRY_RUN] would replace ${removed} records and add ${newRecords.length} records in ${filePath}`);
+            const dryMergedLength = kept.length + newRecords.length;
+            const dryNetNew = dryMergedLength - existing.length;
+            if (dryNetNew === 0) {
+                info(`[DRY_RUN] no changes (${dryMergedLength} records) in ${filePath}`);
+            } else if (dryNetNew > 0) {
+                info(`[DRY_RUN] would add ${dryNetNew} new records (${existing.length} → ${dryMergedLength} total) in ${filePath}`);
+            } else {
+                info(`[DRY_RUN] would remove ${-dryNetNew} records (${existing.length} → ${dryMergedLength} total) in ${filePath}`);
+            }
             debug("[DRY_RUN] records", newRecords);
             continue;
         }
@@ -95,8 +102,14 @@ export const replaceRecords = async (
         await fs.mkdir(dir, { recursive: true });
         const lines = merged.map((r) => JSON.stringify(r)).join("\n") + "\n";
         await fs.writeFile(filePath, lines, "utf-8");
-        const removed = existing.length - kept.length;
-        info(`replaced ${removed} and added ${newRecords.length} records in ${filePath}`);
+        const netNew = merged.length - existing.length;
+        if (netNew === 0) {
+            info(`no changes (${merged.length} records) in ${filePath}`);
+        } else if (netNew > 0) {
+            info(`added ${netNew} new records (${existing.length} → ${merged.length} total) in ${filePath}`);
+        } else {
+            info(`removed ${-netNew} records (${existing.length} → ${merged.length} total) in ${filePath}`);
+        }
     }
 };
 
