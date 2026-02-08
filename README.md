@@ -25,7 +25,7 @@ Create an app password at [Settings > App Passwords](https://bsky.app/settings/a
 
 Create a [Personal Access Token](https://github.com/settings/tokens).
 
-Fine-grained token permissions:
+Fine-grained token (single org):
 
 Account permissions:
 
@@ -37,6 +37,12 @@ Repository permissions:
 - Issues: Read-only
 - Pull requests: Read-only
 - Metadata: Read-only (automatically granted)
+
+Classic token (cross org private repos):
+
+Fine-grained tokens are scoped to a single org. To access private repo events across multiple orgs, use a classic token.
+
+- `repo` — required for private repository events
 
 </details>
 
