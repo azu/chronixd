@@ -15,46 +15,17 @@ type LogContext = {
 
 const asyncLocalStorage = new AsyncLocalStorage<LogContext>();
 
-let originalConsole = {
-    info: console.info.bind(console),
-    warn: console.warn.bind(console),
-    error: console.error.bind(console),
-    debug: console.debug.bind(console),
-};
-
-const intercept = (level: LogLevel) => {
-    return (...args: unknown[]) => {
-        const context = asyncLocalStorage.getStore();
-        if (context) {
-            context.buffer.push({ level, args });
-        } else {
-            originalConsole[level](...args);
-        }
-    };
-};
-
-export const installLogInterceptor = () => {
-    originalConsole = {
-        info: console.info.bind(console),
-        warn: console.warn.bind(console),
-        error: console.error.bind(console),
-        debug: console.debug.bind(console),
-    };
-    console.info = intercept("info");
-    console.warn = intercept("warn");
-    console.error = intercept("error");
-    console.debug = intercept("debug");
-};
-
-export const uninstallLogInterceptor = () => {
-    console.info = originalConsole.info;
-    console.warn = originalConsole.warn;
-    console.error = originalConsole.error;
-    console.debug = originalConsole.debug;
-};
-
 export const isInsideLogBuffer = (): boolean => {
     return asyncLocalStorage.getStore() !== undefined;
+};
+
+export const pushToLogBuffer = (level: LogLevel, args: unknown[]): boolean => {
+    const context = asyncLocalStorage.getStore();
+    if (context) {
+        context.buffer.push({ level, args });
+        return true;
+    }
+    return false;
 };
 
 const addPrefix = (label: string, args: unknown[]): unknown[] => {
@@ -69,15 +40,15 @@ const flushBuffer = (context: LogContext) => {
     if (context.buffer.length === 0) return;
     const isGitHubActions = Boolean(process.env.GITHUB_ACTIONS);
     if (isGitHubActions) {
-        originalConsole.info(`::group::${context.label}`);
+        console.info(`::group::${context.label}`);
     } else {
-        originalConsole.info(`--- ${context.label} ---`);
+        console.info(`--- ${context.label} ---`);
     }
     for (const entry of context.buffer) {
-        originalConsole[entry.level](...addPrefix(context.label, entry.args));
+        console[entry.level](...addPrefix(context.label, entry.args));
     }
     if (isGitHubActions) {
-        originalConsole.info("::endgroup::");
+        console.info("::endgroup::");
     }
 };
 

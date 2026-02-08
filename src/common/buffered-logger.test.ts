@@ -1,41 +1,29 @@
 /* eslint-disable no-console */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { installLogInterceptor, runWithLogBuffer, uninstallLogInterceptor } from "./buffered-logger.js";
+import { runWithLogBuffer } from "./buffered-logger.js";
+import { info, warn } from "./logger.js";
 
 let infoOutput: unknown[][] = [];
 let warnOutput: unknown[][] = [];
-let errorOutput: unknown[][] = [];
-let savedConsole: { info: typeof console.info; warn: typeof console.warn; error: typeof console.error };
+let savedConsole: { info: typeof console.info; warn: typeof console.warn };
 let savedGitHubActions: string | undefined;
 
 beforeEach(() => {
     infoOutput = [];
     warnOutput = [];
-    errorOutput = [];
-    // Ensure non-GitHub Actions format for most tests
     savedGitHubActions = process.env.GITHUB_ACTIONS;
     delete process.env.GITHUB_ACTIONS;
-    // Save real console before any modification
     savedConsole = {
         info: console.info,
         warn: console.warn,
-        error: console.error,
     };
-    // Replace console with spies first
     console.info = (...args: unknown[]) => { infoOutput.push(args); };
     console.warn = (...args: unknown[]) => { warnOutput.push(args); };
-    console.error = (...args: unknown[]) => { errorOutput.push(args); };
-    // Install interceptor on top of spies — originalConsole will capture our spies
-    installLogInterceptor();
 });
 
 afterEach(() => {
-    uninstallLogInterceptor();
-    // Restore real console
     console.info = savedConsole.info;
     console.warn = savedConsole.warn;
-    console.error = savedConsole.error;
-    // Restore GITHUB_ACTIONS
     if (savedGitHubActions === undefined) {
         delete process.env.GITHUB_ACTIONS;
     } else {
@@ -45,15 +33,15 @@ afterEach(() => {
 
 describe("buffered-logger", () => {
     test("logs outside runWithLogBuffer are output immediately", () => {
-        console.info("immediate log");
+        info("immediate log");
         expect(infoOutput).toEqual([["immediate log"]]);
     });
 
     test("logs inside runWithLogBuffer are buffered and flushed with prefix", async () => {
         await runWithLogBuffer("TestService", async () => {
-            console.info("buffered log 1");
-            console.warn("buffered warn");
-            console.info("buffered log 2");
+            info("buffered log 1");
+            warn("buffered warn");
+            info("buffered log 2");
         });
         expect(infoOutput.length).toBe(3); // header + log1 + log2
         expect(infoOutput[0][0]).toBe("--- TestService ---");
@@ -66,7 +54,7 @@ describe("buffered-logger", () => {
         const err = new Error("test error");
         await expect(
             runWithLogBuffer("ErrorService", async () => {
-                console.info("before error");
+                info("before error");
                 throw err;
             })
         ).rejects.toThrow("test error");
@@ -79,14 +67,14 @@ describe("buffered-logger", () => {
 
         await Promise.all([
             runWithLogBuffer("ServiceA", async () => {
-                console.info("A-1");
+                info("A-1");
                 await delay(10);
-                console.info("A-2");
+                info("A-2");
             }),
             runWithLogBuffer("ServiceB", async () => {
-                console.info("B-1");
+                info("B-1");
                 await delay(5);
-                console.info("B-2");
+                info("B-2");
             }),
         ]);
 
@@ -113,21 +101,12 @@ describe("buffered-logger", () => {
     });
 
     test("uses ::group:: format when GITHUB_ACTIONS is set", async () => {
-        const original = process.env.GITHUB_ACTIONS;
         process.env.GITHUB_ACTIONS = "true";
-        try {
-            await runWithLogBuffer("CIService", async () => {
-                console.info("ci log");
-            });
-            expect(infoOutput[0][0]).toBe("::group::CIService");
-            expect(infoOutput[1]).toEqual(["[CIService] ci log"]);
-            expect(infoOutput[2][0]).toBe("::endgroup::");
-        } finally {
-            if (original === undefined) {
-                delete process.env.GITHUB_ACTIONS;
-            } else {
-                process.env.GITHUB_ACTIONS = original;
-            }
-        }
+        await runWithLogBuffer("CIService", async () => {
+            info("ci log");
+        });
+        expect(infoOutput[0][0]).toBe("::group::CIService");
+        expect(infoOutput[1]).toEqual(["[CIService] ci log"]);
+        expect(infoOutput[2][0]).toBe("::endgroup::");
     });
 });

@@ -1,7 +1,7 @@
 import { parserEnvs, SupportedEnv, typeOfEnv } from "./envs.js";
 import { ServiceDefinition } from "./common/types.js";
 import { debug, errorLog, info, warn } from "./common/logger.js";
-import { installLogInterceptor, runWithLogBuffer } from "./common/buffered-logger.js";
+import { runWithLogBuffer } from "./common/buffered-logger.js";
 import { RetryAbleError } from "./common/RetryAbleError.js";
 import { RateLimitError } from "./common/RateLimitError.js";
 import { blueskyService } from "./services/bluesky.js";
@@ -20,8 +20,6 @@ import { appendRecords, replaceRecords } from "./writer/ndjson.js";
 import { readLastRecord } from "./writer/lastItem.js";
 import { writeServiceSchemas } from "./writer/schema.js";
 import { SERVICE_DIR_MAP } from "./schema/definitions.js";
-
-installLogInterceptor();
 
 if (Boolean(process.env.CHRONIXD_DRY_RUN)) {
     info("DRY_RUN mode");
