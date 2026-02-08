@@ -1,6 +1,7 @@
 import { AsocialBookmark } from "asocial-bookmark";
 import type { AsocialBookmarkItem } from "asocial-bookmark";
 import { BaseRecord, BookmarkRecord, ServiceDefinition } from "../common/types.js";
+import { info } from "../common/logger.js";
 
 export type AsocialBookmarkEnv = {
     asocial_bookmark_owner: string;
@@ -57,6 +58,7 @@ const fetchAsocialBookmark = async (
     const allRecords: BookmarkRecord[] = [];
     for (const date of monthDates) {
         const items = await bookmark.getBookmarksAt(date);
+        info("getBookmarksAt(%s): %d items", date.toISOString(), items.length);
         allRecords.push(...items.map(toBookmarkRecord));
     }
     return {
