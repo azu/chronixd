@@ -6,11 +6,15 @@ let infoOutput: unknown[][] = [];
 let warnOutput: unknown[][] = [];
 let errorOutput: unknown[][] = [];
 let savedConsole: { info: typeof console.info; warn: typeof console.warn; error: typeof console.error };
+let savedGitHubActions: string | undefined;
 
 beforeEach(() => {
     infoOutput = [];
     warnOutput = [];
     errorOutput = [];
+    // Ensure non-GitHub Actions format for most tests
+    savedGitHubActions = process.env.GITHUB_ACTIONS;
+    delete process.env.GITHUB_ACTIONS;
     // Save real console before any modification
     savedConsole = {
         info: console.info,
@@ -31,6 +35,12 @@ afterEach(() => {
     console.info = savedConsole.info;
     console.warn = savedConsole.warn;
     console.error = savedConsole.error;
+    // Restore GITHUB_ACTIONS
+    if (savedGitHubActions === undefined) {
+        delete process.env.GITHUB_ACTIONS;
+    } else {
+        process.env.GITHUB_ACTIONS = savedGitHubActions;
+    }
 });
 
 describe("buffered-logger", () => {
