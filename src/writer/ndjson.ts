@@ -64,7 +64,8 @@ export const replaceRecords = async (
     const yearMonths = getYearMonthRange(filter.sinceUnixTimeMs, maxRecordTime);
     const newRecordsByKey = new Map<string, BaseRecord[]>();
     for (const record of records) {
-        const { year, month } = getYearMonth(record.unixTimeMs);
+        const effectiveTime = Math.max(record.unixTimeMs, filter.sinceUnixTimeMs);
+        const { year, month } = getYearMonth(effectiveTime);
         const key = `${year}/${month}`;
         const group = newRecordsByKey.get(key);
         if (group) {
