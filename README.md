@@ -183,7 +183,7 @@ on:
     - cron: "*/30 0-16,22-23 * * *" # Every 30 minutes (UTC 0-16, 22-23 = JST 9-25)
   workflow_dispatch:
 env:
-  CHRONIXD_VERSION: v4.2.0
+  CHRONIXD_VERSION: v4.2.1
 
 permissions:
   contents: write
