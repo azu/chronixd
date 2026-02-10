@@ -1,6 +1,7 @@
 import { BaseRecord, SlackRecord, SlackAttachment, ServiceDefinition, FetchOptions } from "../common/types.js";
 import { createLogger } from "../common/logger.js";
 import { createCache } from "../common/cache.ts";
+import { fetchWithRetry } from "../common/fetchWithRetry.js";
 
 const logger = createLogger("Slack");
 
@@ -75,7 +76,7 @@ const searchSlackMessages = async ({
         count: String(count),
         page: String(page),
     });
-    const res = await fetch(`https://slack.com/api/search.messages?${params.toString()}`, {
+    const res = await fetchWithRetry(`https://slack.com/api/search.messages?${params.toString()}`, {
         method: "GET",
         headers: {
             "Authorization": `Bearer ${token}`,

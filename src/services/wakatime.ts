@@ -1,6 +1,7 @@
 import { BaseRecord, WakaTimeRecord, ServiceDefinition, FetchOptions, ReplaceFilter } from "../common/types.js";
 import { createCache } from "../common/cache.js";
 import { createLogger } from "../common/logger.js";
+import { fetchWithRetry } from "../common/fetchWithRetry.js";
 
 const logger = createLogger("WakaTime");
 
@@ -112,7 +113,7 @@ export const fetchWakaTime = async (
         const url = `https://wakatime.com/api/v1/users/current/durations?date=${date}`;
         logger.info("Fetching durations for %s", date);
 
-        const response = await fetch(url, {
+        const response = await fetchWithRetry(url, {
             headers: {
                 Authorization: authHeader,
             },

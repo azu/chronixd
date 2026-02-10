@@ -66,6 +66,18 @@ npx npm@latest version major
 
 `postversion`スクリプトで`sync-version` → `git commit` → `git push --follow-tags`が自動実行される。
 
+## リトライ
+
+リトライは2層に分かれている。サービスの種類に応じてどちらか一方が担当する。
+
+- raw fetchを使うサービスは `fetchWithRetry`（`src/common/fetchWithRetry.ts`）を使う
+  - 429/503のRetry-Afterヘッダー、5xx、ネットワークエラーを自動リトライする
+  - サービス内で独自のリトライを実装しない
+- ライブラリ利用サービス（Octokit, @notionhq/client等）は `processEnv`（`src/index.ts`）の共通リトライに任せる
+  - RetryAbleErrorとネットワークエラー（TypeError）をリトライする
+
+リトライ回数はデフォルト2回。`CHRONIXD_RETRY_COUNT`環境変数で変更可能。
+
 ## キャッシュ
 
 重複防止のため`.cache/`にキャッシュを保存。GitHub Actionsでは`actions/cache`の設定が必要。

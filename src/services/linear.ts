@@ -1,6 +1,7 @@
 import { BaseRecord, LinearRecord, ServiceDefinition } from "../common/types.js";
 import { createLogger } from "../common/logger.js";
 import { createCache } from "../common/cache.ts";
+import { fetchWithRetry } from "../common/fetchWithRetry.js";
 
 const logger = createLogger("Linear");
 export type LinearEnv = {
@@ -103,7 +104,7 @@ type IssueHistoryResponse = {
     errors?: Array<{ message: string }>;
 };
 async function searchAssignedIssues({ token }: { token: string }): Promise<LinearRecordWithId[]> {
-    const res = await fetch("https://api.linear.app/graphql", {
+    const res = await fetchWithRetry("https://api.linear.app/graphql", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -155,7 +156,7 @@ async function searchAssignedIssues({ token }: { token: string }): Promise<Linea
 }
 
 async function searchCreatedByMe({ token }: { token: string }): Promise<LinearRecordWithId[]> {
-    const res = await fetch("https://api.linear.app/graphql", {
+    const res = await fetchWithRetry("https://api.linear.app/graphql", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -207,7 +208,7 @@ async function searchCreatedByMe({ token }: { token: string }): Promise<LinearRe
 }
 
 async function searchMyComments({ token }: { token: string }): Promise<LinearRecordWithId[]> {
-    const res = await fetch("https://api.linear.app/graphql", {
+    const res = await fetchWithRetry("https://api.linear.app/graphql", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -253,7 +254,7 @@ async function searchMyComments({ token }: { token: string }): Promise<LinearRec
 }
 
 async function searchMyIssueHistory({ token }: { token: string }): Promise<LinearRecordWithId[]> {
-    const res = await fetch("https://api.linear.app/graphql", {
+    const res = await fetchWithRetry("https://api.linear.app/graphql", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -366,7 +367,7 @@ async function searchMyIssueHistory({ token }: { token: string }): Promise<Linea
 }
 
 async function searchMyCreatedIssues({ token }: { token: string }): Promise<LinearRecordWithId[]> {
-    const res = await fetch("https://api.linear.app/graphql", {
+    const res = await fetchWithRetry("https://api.linear.app/graphql", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",

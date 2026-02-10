@@ -1,6 +1,7 @@
 import { BaseRecord, LocationRecord, ServiceDefinition } from "../common/types.js";
 import { createCache } from "../common/cache.js";
 import { createLogger } from "../common/logger.js";
+import { fetchWithRetry } from "../common/fetchWithRetry.js";
 
 const logger = createLogger("Location");
 
@@ -110,7 +111,7 @@ export const fetchLocation = async (
     url.searchParams.set("from", fromDate.toISOString());
     url.searchParams.set("to", now.toISOString());
 
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithRetry(url.toString(), {
         headers: {
             Authorization: `Bearer ${env.location_api_token}`,
         },
