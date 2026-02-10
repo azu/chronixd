@@ -89,7 +89,8 @@ const processEnv = async (env: SupportedEnv): Promise<void> => {
 
         const service = findService(env);
         const writeOptions = { outputDir: cliOptions.output, name: env.name, service: serviceDir };
-        try {
+
+        const executeFetch = async () => {
             if (service.writeMode === "replace") {
                 const result = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
                 info("new records count: %d", result.records.length);
@@ -99,21 +100,23 @@ const processEnv = async (env: SupportedEnv): Promise<void> => {
                 info("new records count: %d", records.length);
                 await appendRecords(writeOptions, records);
             }
+        };
+
+        const isRetryableError = (error: unknown): boolean => {
+            if (error instanceof RetryAbleError) return true;
+            if (error instanceof TypeError) return true;
+            return false;
+        };
+
+        try {
+            await executeFetch();
         } catch (error) {
-            if (error instanceof RetryAbleError) {
-                info("retryable error", error.message);
-                if (service.writeMode === "replace") {
-                    const result = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
-                    info("new records count: %d", result.records.length);
-                    await replaceRecords(writeOptions, result.records, result.replaceFilter);
-                } else {
-                    const records = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
-                    info("new records count: %d", records.length);
-                    await appendRecords(writeOptions, records);
-                }
-            } else if (error instanceof RateLimitError) {
+            if (error instanceof RateLimitError) {
                 warn("rate limit error", error.message);
                 warn("treat rate limit error as success");
+            } else if (isRetryableError(error)) {
+                info("retryable error, retrying: %s", (error as Error).message);
+                await executeFetch();
             } else {
                 throw error;
             }

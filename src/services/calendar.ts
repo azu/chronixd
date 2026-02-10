@@ -1,5 +1,6 @@
 import ical, { VEvent } from "node-ical"
 import { CalendarRecord, BaseRecord, ServiceDefinition } from "../common/types.js";
+import { fetchWithRetry } from "../common/fetchWithRetry.js";
 
 export type CalendarEnv = {
     calendar_url: string;
@@ -18,7 +19,7 @@ const fetchCalendar = async (env: CalendarEnv, _lastRecord: BaseRecord | null): 
     records: CalendarRecord[];
     replaceFilter: { type: string; sinceUnixTimeMs: number };
 }> => {
-    const res = await fetch(env.calendar_url).then(res => {
+    const res = await fetchWithRetry(env.calendar_url).then(res => {
         if (res.ok) {
             return res.text();
         }
