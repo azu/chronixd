@@ -98,17 +98,21 @@ export const fetchWakaTime = async (
     const authHeader = `Basic ${Buffer.from(env.wakatime_api_key).toString("base64")}`;
     const records: WakaTimeRecord[] = [];
     const newCachedDates: CacheItem[] = [];
-    let firstFetchedDate: Date | null = null;
+    let firstFetchedMs: number | null = null;
+    const cursor = new Date(fromDate);
+    cursor.setHours(0, 0, 0, 0);
 
     for (const date of dates) {
+        const midnightMs = cursor.getTime();
+        cursor.setDate(cursor.getDate() + 1);
+
         if (cachedDates.has(date) && date !== today) {
             logger.debug("Skipping cached date: %s", date);
             continue;
         }
 
-        if (firstFetchedDate === null) {
-            const [y, m, d] = date.split("-").map(Number);
-            firstFetchedDate = new Date(y, m - 1, d);
+        if (firstFetchedMs === null) {
+            firstFetchedMs = midnightMs;
         }
 
         const url = `https://wakatime.com/api/v1/users/current/durations?date=${date}`;
@@ -150,7 +154,7 @@ export const fetchWakaTime = async (
 
     const replaceFilter: ReplaceFilter = {
         type: WakaTimeType,
-        sinceUnixTimeMs: firstFetchedDate ? firstFetchedDate.getTime() : fromDate.getTime(),
+        sinceUnixTimeMs: firstFetchedMs ?? fromDate.getTime(),
     };
 
     return { records, replaceFilter };
