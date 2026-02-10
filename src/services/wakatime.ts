@@ -107,7 +107,8 @@ export const fetchWakaTime = async (
         }
 
         if (firstFetchedDate === null) {
-            firstFetchedDate = new Date(date + "T00:00:00");
+            const [y, m, d] = date.split("-").map(Number);
+            firstFetchedDate = new Date(y, m - 1, d);
         }
 
         const url = `https://wakatime.com/api/v1/users/current/durations?date=${date}`;
