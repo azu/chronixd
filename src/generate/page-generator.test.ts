@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
