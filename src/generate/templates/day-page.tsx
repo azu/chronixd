@@ -33,7 +33,7 @@ const NavBar = ({ prevDateKey, nextDateKey, pathPrefix }: { prevDateKey: string 
 
 export const DayPage = ({ dayGroup, prevDateKey, nextDateKey, language, microblogEndpoint, microblogToken }: DayPageProps): string => {
     const { dateKey, entries } = dayGroup;
-    const pathPrefix = "../../../";
+    const pathPrefix = "../../";
     const title = `${dateKey} - chronixd`;
 
     const nav = NavBar({ prevDateKey, nextDateKey, pathPrefix });
