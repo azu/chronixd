@@ -48,6 +48,17 @@ describe("readAllRecords", () => {
         const records = await readAllRecords("/tmp/nonexistent-chronixd-test");
         expect(records.length).toBe(0);
     });
+
+    test("filters records by since parameter", async () => {
+        // All test data is in 2024/01, so since=2024-02 should return nothing
+        const records = await readAllRecords(TEST_DIR, "2024-02");
+        expect(records.length).toBe(0);
+    });
+
+    test("includes records matching since month", async () => {
+        const records = await readAllRecords(TEST_DIR, "2024-01");
+        expect(records.length).toBe(4);
+    });
 });
 
 describe("groupByDay", () => {

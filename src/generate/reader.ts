@@ -17,7 +17,31 @@ export type DayGroup = {
     entries: TimelineEntry[];
 };
 
-const walkNdjsonFiles = async (dir: string): Promise<{ filePath: string; service: string; sourceName: string }[]> => {
+type SinceFilter = {
+    year: number;
+    month: number;
+} | null;
+
+const parseSince = (since: string | null): SinceFilter => {
+    if (!since) return null;
+    // "2026-02" or "2026-02-15" → year=2026, month=2
+    const parts = since.split("-").map(Number);
+    if (parts.length >= 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])) {
+        return { year: parts[0], month: parts[1] };
+    }
+    return null;
+};
+
+const isAfterSince = (yearStr: string, monthStr: string, since: SinceFilter): boolean => {
+    if (!since) return true;
+    const year = Number(yearStr);
+    const month = Number(monthStr.replace(".ndjson", ""));
+    if (year > since.year) return true;
+    if (year === since.year && month >= since.month) return true;
+    return false;
+};
+
+const walkNdjsonFiles = async (dir: string, since: SinceFilter): Promise<{ filePath: string; service: string; sourceName: string }[]> => {
     const results: { filePath: string; service: string; sourceName: string }[] = [];
     let services: string[];
     try {
@@ -38,6 +62,8 @@ const walkNdjsonFiles = async (dir: string): Promise<{ filePath: string; service
 
             const years = await fs.readdir(namePath);
             for (const year of years) {
+                if (since && Number(year) < since.year) continue;
+
                 const yearPath = path.join(namePath, year);
                 const yearStat = await fs.stat(yearPath);
                 if (!yearStat.isDirectory()) continue;
@@ -45,6 +71,7 @@ const walkNdjsonFiles = async (dir: string): Promise<{ filePath: string; service
                 const files = await fs.readdir(yearPath);
                 for (const file of files) {
                     if (!file.endsWith(".ndjson")) continue;
+                    if (!isAfterSince(year, file, since)) continue;
                     results.push({
                         filePath: path.join(yearPath, file),
                         service,
@@ -57,8 +84,9 @@ const walkNdjsonFiles = async (dir: string): Promise<{ filePath: string; service
     return results;
 };
 
-export const readAllRecords = async (inputDir: string): Promise<TimelineEntry[]> => {
-    const files = await walkNdjsonFiles(inputDir);
+export const readAllRecords = async (inputDir: string, since?: string | null): Promise<TimelineEntry[]> => {
+    const sinceFilter = parseSince(since ?? null);
+    const files = await walkNdjsonFiles(inputDir, sinceFilter);
     const allEntries: TimelineEntry[] = [];
 
     for (const { filePath, service, sourceName } of files) {

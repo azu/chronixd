@@ -36,14 +36,21 @@ describe("parseCli", () => {
         process.argv = ["bun", "src/index.ts", "generate", "--input", "./mydb", "--output", "./dist"];
         const result = parseCli();
         expect(result.command).toBe("generate");
-        expect(result).toEqual({ command: "generate", input: "./mydb", output: "./dist", language: "ja" });
+        expect(result).toEqual({ command: "generate", input: "./mydb", output: "./dist", language: "ja", since: null });
     });
 
     test("generate with language option", () => {
         process.argv = ["bun", "src/index.ts", "generate", "-L", "en"];
         const result = parseCli();
         expect(result.command).toBe("generate");
-        expect(result).toEqual({ command: "generate", input: "./db", output: "./dist", language: "en" });
+        expect(result).toEqual({ command: "generate", input: "./db", output: "./dist", language: "en", since: null });
+    });
+
+    test("generate with since option", () => {
+        process.argv = ["bun", "src/index.ts", "generate", "--since", "2026-02"];
+        const result = parseCli();
+        expect(result.command).toBe("generate");
+        expect(result).toEqual({ command: "generate", input: "./db", output: "./dist", language: "ja", since: "2026-02" });
     });
 
     test("backward compat: no args at all", () => {

@@ -11,6 +11,7 @@ export type GenerateCliOptions = {
     input: string;
     output: string;
     language: string;
+    since: string | null;
 };
 
 export type CliOptions = PullCliOptions | GenerateCliOptions;
@@ -59,6 +60,10 @@ const parseGenerateArgs = (args: string[]): GenerateCliOptions => {
                 short: "L",
                 default: "ja",
             },
+            since: {
+                type: "string",
+                short: "s",
+            },
         },
     });
     return {
@@ -66,6 +71,7 @@ const parseGenerateArgs = (args: string[]): GenerateCliOptions => {
         input: values.input ?? "./db",
         output: values.output ?? "./dist",
         language: values.language ?? "ja",
+        since: values.since ?? null,
     };
 };
 

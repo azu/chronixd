@@ -26,7 +26,7 @@ const detectMicroblogConfig = (): MicroblogConfig => {
 };
 
 export const runGenerate = async (options: GenerateCliOptions): Promise<void> => {
-    const records = await readAllRecords(options.input);
+    const records = await readAllRecords(options.input, options.since);
     const dayGroups = groupByDay(records);
     const microblogConfig = detectMicroblogConfig();
 

@@ -7,6 +7,7 @@ const { values } = parseArgs({
         input: { type: "string", short: "i", default: "./db" },
         output: { type: "string", short: "o", default: "./dist" },
         language: { type: "string", default: "ja" },
+        since: { type: "string", short: "s" },
     },
 });
 
@@ -15,4 +16,5 @@ await runGenerate({
     input: values.input ?? "./db",
     output: values.output ?? "./dist",
     language: values.language ?? "ja",
+    since: values.since ?? null,
 });
