@@ -35,7 +35,7 @@
     "#jsx/jsx-runtime": "./src/generate/jsx/jsx-runtime.ts",
     "#jsx/jsx-dev-runtime": "./src/generate/jsx/jsx-dev-runtime.ts"
   },
-  "packageManager": "bun@1.3.0",
+  "packageManager": "bun@1.3.9",
   "dependencies": {
     "@atproto/api": "^0.6.14",
     "@notionhq/client": "^5.9.0",
