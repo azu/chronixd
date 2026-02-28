@@ -8,8 +8,10 @@
     "preview": "bun run dist && CACHE_DIR=$(pwd)/.cache DEBUG=1 ./chronixd --output ./db",
     "dry-run": "CACHE_DIR=$(pwd)/.cache DEBUG=1 CHRONIXD_DRY_RUN=true bun run src/index.ts -- --output ./db",
     "ci:dry-run": "CACHE_DIR=$(pwd)/.cache CHRONIXD_DRY_RUN=true bun run src/index.ts -- --output ./db",
+    "generate": "bun run src/index.ts -- generate --input ./db --output ./dist",
+    "generate:dev": "bun run scripts/dev-server.ts",
     "dist": "bun build src/index.ts --compile --outfile chronixd",
-    "lint": "eslint \"**/*.ts\"",
+    "lint": "eslint \"**/*.{ts,tsx}\"",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "version:patch": "npx npm@latest version patch",
@@ -23,12 +25,17 @@
     "@typescript-eslint/eslint-plugin": "^6.2.1",
     "@typescript-eslint/parser": "^6.2.1",
     "eslint": "^8.46.0",
+    "pagefind": "^1.3.0",
     "typescript": "^5.5.0"
   },
   "peerDependencies": {
     "typescript": "^5.5.0"
   },
-  "packageManager": "bun@1.3.0",
+  "imports": {
+    "#jsx/jsx-runtime": "./src/generate/jsx/jsx-runtime.ts",
+    "#jsx/jsx-dev-runtime": "./src/generate/jsx/jsx-dev-runtime.ts"
+  },
+  "packageManager": "bun@1.3.9",
   "dependencies": {
     "@atproto/api": "^0.6.14",
     "@notionhq/client": "^5.9.0",

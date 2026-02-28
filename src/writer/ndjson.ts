@@ -38,7 +38,7 @@ const getYearMonthRange = (startMs: number, endMs: number): { year: string; mont
     return result;
 };
 
-const readNdjsonFile = async (filePath: string): Promise<BaseRecord[]> => {
+export const readNdjsonFile = async (filePath: string): Promise<BaseRecord[]> => {
     try {
         const content = await fs.readFile(filePath, "utf-8");
         return content

@@ -118,10 +118,20 @@ export type BookmarkRecord = BaseRecord & {
     relatedItems: { title: string; url: string }[];
 };
 
+export type ImageMeta = {
+    url: string;
+    width?: number;
+    height?: number;
+    content_type?: string;
+    size?: number;
+};
+
 export type MicroblogRecord = BaseRecord & {
     type: "Microblog";
     text: string;
-    imageUrls: string[];
+    images: ImageMeta[];
+    /** @deprecated Use images instead */
+    imageUrls?: string[];
 };
 
 export type AnyRecord =
