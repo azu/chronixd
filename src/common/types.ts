@@ -104,10 +104,6 @@ export type WakaTimeRecord = BaseRecord & {
     type: "WakaTime";
     project: string;
     duration: number;
-    language?: string;
-    editor?: string;
-    branch?: string;
-    entity?: string;
     aiAdditions?: number;
     aiDeletions?: number;
     humanAdditions?: number;
