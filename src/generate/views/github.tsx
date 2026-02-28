@@ -4,6 +4,9 @@ import { safeUrl } from "./safe-url.js";
 import { formatTime } from "./format.js";
 import { getServiceIcon } from "./icons.js";
 
+const escapeHtml = (s: string): string =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
 const formatEventLine = (entry: TimelineEntry): string => {
     const eventType = (entry as { eventType?: string }).eventType ?? (entry as { resultType?: string }).resultType ?? "";
     const title = (entry as { title?: string }).title ?? (entry as { issueTitle?: string }).issueTitle ?? "";
@@ -11,11 +14,11 @@ const formatEventLine = (entry: TimelineEntry): string => {
     const url = entry.url ? safeUrl(entry.url) : null;
 
     const label = title
-        ? `${eventType}: ${title}${number ? ` #${number}` : ""}`
-        : `${eventType}${number ? ` #${number}` : ""}`;
+        ? `${escapeHtml(eventType)}: ${escapeHtml(title)}${number ? ` #${number}` : ""}`
+        : `${escapeHtml(eventType)}${number ? ` #${number}` : ""}`;
 
     if (url) {
-        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+        return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${label}</a>`;
     }
     return label;
 };

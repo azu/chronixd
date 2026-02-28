@@ -31,9 +31,9 @@ const renderAttachment = (att: SlackAttachment): string => {
     const title = att.title ?? att.serviceName ?? "";
     if (!title && !url) return "";
     if (url) {
-        return `<div class="entry-attachment"><a href="${url}" target="_blank" rel="noopener noreferrer">${title || url}</a></div>`;
+        return `<div class="entry-attachment"><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(title || url)}</a></div>`;
     }
-    return `<div class="entry-attachment">${title}</div>`;
+    return `<div class="entry-attachment">${escapeHtml(title)}</div>`;
 };
 
 const SlackEntryView = ({ entry }: { entry: TimelineEntry }): string => {

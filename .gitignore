@@ -1,4 +1,5 @@
 /data-repo
+.playwright-mcp/
 /chronixd
 /db
 .test-output-*

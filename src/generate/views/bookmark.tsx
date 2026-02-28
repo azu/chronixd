@@ -15,7 +15,7 @@ const BookmarkEntryView = ({ entry }: { entry: TimelineEntry }): string => {
             <time class="entry-time">{time}</time>
             <span class="entry-badge" dangerouslySetInnerHTML={{ __html: `${getServiceIcon("bookmark")} Bookmark` }}></span>
             {url
-                ? <span class="entry-body" dangerouslySetInnerHTML={{ __html: `<a href="${url}" target="_blank" rel="noopener noreferrer">${title || url}</a>` }}></span>
+                ? <span class="entry-body"><a href={url} target="_blank" rel="noopener noreferrer">{title || url}</a></span>
                 : <span class="entry-body">{title}</span>}
             {tags.length > 0
                 ? <div class="entry-meta">{tags.join(", ")}</div>
