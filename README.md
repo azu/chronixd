@@ -146,14 +146,44 @@ Repository permissions:
 
 ### CLI
 
+chronixd has two subcommands: `pull` and `generate`.
+
+#### pull (default)
+
+Collect data from services and output NDJSON files.
+
 ```bash
-CHRONIXD_ENVS='[...]' ./chronixd --output ./db --limit 1000
+CHRONIXD_ENVS='[...]' ./chronixd pull --output ./db --limit 1000
 ```
 
 - `--output` (`-o`): Output directory (default: `./db`)
 - `--limit` (`-l`): Max fetch count per service (default: `1000`)
 
+`pull` is the default subcommand. `./chronixd --output ./db` works the same way.
+
 Output path: `{output}/{service}/{name}/{year}/{month}.ndjson`
+
+#### generate
+
+Generate a static HTML timeline site from NDJSON data.
+
+```bash
+./chronixd generate --input ./db --output ./dist --language ja
+```
+
+- `--input` (`-i`): Input directory containing NDJSON files (default: `./db`)
+- `--output` (`-o`): Output directory for HTML files (default: `./dist`)
+- `--language` (`-L`): Language code for HTML lang attribute (default: `ja`)
+
+The generated site includes:
+
+- Day-based timeline pages with service-specific views
+- Index page with calendar-like navigation
+- Full-text search via [Pagefind](https://pagefind.app/)
+- `today.html` pointing to the current day's page
+- Post page for microblog integration (when `CHRONIXD_ENVS` contains microblog config)
+
+Each service has a dedicated view: Bluesky, GitHub (grouped by repo), Slack, Calendar, Linear, WakaTime (grouped by session), Location (stay/transit grouping), Bookmark, Microblog. Other services use a default view.
 
 ### ENV Configuration
 
@@ -227,11 +257,16 @@ jobs:
           path: .cache
           key: chronixd-cache-${{ github.run_id }}
 
+      - name: Generate static site
+        run: ./chronixd generate --input ./db --output ./dist
+        env:
+          CHRONIXD_ENVS: ${{ secrets.CHRONIXD_ENVS }}
+
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add db/ > /dev/null 2>&1
+          git add db/ dist/ > /dev/null 2>&1
           git diff --cached --quiet 2>/dev/null || git commit -m "chore: update db" > /dev/null 2>&1
           git push > /dev/null 2>&1
 ```
@@ -276,8 +311,14 @@ bun install
 ```
 
 ```bash
-# Create .env with CHRONIXD_ENVS
+# Pull data (dry-run)
 op run --env-file .env -- bun run dry-run
+
+# Generate static site
+bun run generate
+
+# Dev server with hot reload
+bun run generate:dev
 ```
 
 ## Debug
