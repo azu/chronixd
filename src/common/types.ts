@@ -118,6 +118,12 @@ export type BookmarkRecord = BaseRecord & {
     relatedItems: { title: string; url: string }[];
 };
 
+export type MicroblogRecord = BaseRecord & {
+    type: "Microblog";
+    text: string;
+    imageUrls: string[];
+};
+
 export type AnyRecord =
     | BlueskyRecord
     | GitHubEventRecord
@@ -129,7 +135,8 @@ export type AnyRecord =
     | NotionRecord
     | SlackRecord
     | BookmarkRecord
-    | WakaTimeRecord;
+    | WakaTimeRecord
+    | MicroblogRecord;
 
 export type ReplaceFilter = {
     type: string;
