@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { watch } from "fs";
 import { resolve } from "path";
 
