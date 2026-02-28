@@ -9,10 +9,14 @@
     "strict": true,
     "downlevelIteration": true,
     "skipLibCheck": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
+    "jsxImportSource": "#jsx",
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "allowJs": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "#jsx/jsx-runtime": ["./src/generate/jsx/jsx-runtime.ts"]
+    }
   }
 }

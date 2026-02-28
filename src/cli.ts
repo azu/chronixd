@@ -1,13 +1,24 @@
 import { parseArgs } from "util";
 
-export type CliOptions = {
+export type PullCliOptions = {
+    command: "pull";
     output: string;
     limit: number;
 };
 
-export const parseCli = (): CliOptions => {
+export type GenerateCliOptions = {
+    command: "generate";
+    input: string;
+    output: string;
+    language: string;
+};
+
+export type CliOptions = PullCliOptions | GenerateCliOptions;
+
+const parsePullArgs = (args: string[]): PullCliOptions => {
     const { values } = parseArgs({
-        args: process.argv.slice(2),
+        args,
+        allowPositionals: true,
         options: {
             output: {
                 type: "string",
@@ -22,7 +33,55 @@ export const parseCli = (): CliOptions => {
         },
     });
     return {
+        command: "pull",
         output: values.output ?? "./db",
         limit: Number(values.limit ?? "1000"),
     };
+};
+
+const parseGenerateArgs = (args: string[]): GenerateCliOptions => {
+    const { values } = parseArgs({
+        args,
+        allowPositionals: true,
+        options: {
+            input: {
+                type: "string",
+                short: "i",
+                default: "./db",
+            },
+            output: {
+                type: "string",
+                short: "o",
+                default: "./dist",
+            },
+            language: {
+                type: "string",
+                short: "L",
+                default: "ja",
+            },
+        },
+    });
+    return {
+        command: "generate",
+        input: values.input ?? "./db",
+        output: values.output ?? "./dist",
+        language: values.language ?? "ja",
+    };
+};
+
+export const parseCli = (): CliOptions => {
+    const args = process.argv.slice(2);
+    const subcommand = args[0];
+
+    if (subcommand === "generate") {
+        return parseGenerateArgs(args.slice(1));
+    }
+
+    // "pull" or no subcommand (backward compat)
+    if (subcommand === "pull") {
+        return parsePullArgs(args.slice(1));
+    }
+
+    // No subcommand: treat as pull with all args
+    return parsePullArgs(args);
 };

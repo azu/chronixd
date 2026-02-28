@@ -193,7 +193,7 @@ export const SCHEMA_DEFINITIONS: ServiceSchemaDefinition[] = [
             unixTimeMs: { type: "BIGINT", description: "Unix timestamp in milliseconds" },
             url: { type: "VARCHAR", nullable: true, description: "Post URL" },
             text: { type: "VARCHAR", description: "Post text content" },
-            imageUrls: { type: "VARCHAR[]", description: "Image URLs" },
+            images: { type: "VARCHAR", description: "Image metadata as JSON array of {url, width?, height?, content_type?, size?} objects" },
         },
     },
 ];
