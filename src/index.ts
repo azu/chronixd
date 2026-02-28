@@ -15,6 +15,7 @@ import { notionService, fetchNotionSchema, isNotionEnv } from "./services/notion
 import { slackService } from "./services/slack.js";
 import { asocialBookmarkService } from "./services/asocial-bookmark.js";
 import { wakatimeService } from "./services/wakatime.js";
+import { microblogService } from "./services/microblog.js";
 import { parseCli } from "./cli.js";
 import { appendRecords, replaceRecords } from "./writer/ndjson.js";
 import { readLastRecord } from "./writer/lastItem.js";
@@ -41,6 +42,7 @@ const services: ServiceDefinition[] = [
     slackService,
     asocialBookmarkService,
     wakatimeService,
+    microblogService,
 ];
 
 const findService = (env: SupportedEnv): ServiceDefinition => {

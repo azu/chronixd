@@ -116,6 +116,17 @@ Get your API key from [WakaTime Settings](https://wakatime.com/settings/api-key)
 </details>
 
 <details>
+<summary>Microblog (chronixd-microblog)</summary>
+
+Collect posts from a self-hosted microblog powered by [chronixd-microblog](https://github.com/azu/chronixd-microblog).
+
+**Credentials**
+
+Deploy chronixd-microblog Worker and set the Bearer token.
+
+</details>
+
+<details>
 <summary>Bookmarks (asocial-bookmark)</summary>
 
 [github.com/azu/asocial-bookmark](https://github.com/azu/asocial-bookmark) — Collect bookmarks from a GitHub repository managed by asocial-bookmark.

@@ -9,8 +9,9 @@ import { isNotionEnv, NotionEnv, NotionType } from "./services/notion.js";
 import { isSlackEnv, SlackEnv, SlackType } from "./services/slack.js";
 import { isAsocialBookmarkEnv, AsocialBookmarkEnv, BookmarkType } from "./services/asocial-bookmark.js";
 import { isWakaTimeEnv, WakaTimeEnv, WakaTimeType } from "./services/wakatime.js";
+import { isMicroblogEnv, MicroblogEnv, MicroblogType } from "./services/microblog.js";
 
-export type SupportedEnv = (BlueSkyEnv | GitHubEnv | GitHubSearchEnv | CalendarEnv | RssEnv | LinearEnv | LocationEnv | NotionEnv | SlackEnv | AsocialBookmarkEnv | WakaTimeEnv) & {
+export type SupportedEnv = (BlueSkyEnv | GitHubEnv | GitHubSearchEnv | CalendarEnv | RssEnv | LinearEnv | LocationEnv | NotionEnv | SlackEnv | AsocialBookmarkEnv | WakaTimeEnv | MicroblogEnv) & {
     name: string;
 };
 
@@ -37,6 +38,8 @@ export const typeOfEnv = (env: SupportedEnv): string => {
         return BookmarkType;
     } else if (isWakaTimeEnv(env)) {
         return WakaTimeType;
+    } else if (isMicroblogEnv(env)) {
+        return MicroblogType;
     }
     throw new Error("unknown env type");
 };
