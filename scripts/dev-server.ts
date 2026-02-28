@@ -29,6 +29,7 @@ const getMime = (path: string): string => {
 
 const serve = Bun.serve({
     port: PORT,
+    idleTimeout: 0,
     async fetch(req) {
         const url = new URL(req.url);
 
@@ -73,13 +74,21 @@ const serve = Bun.serve({
 
 console.log(`Dev server running at http://localhost:${serve.port}`);
 
-// Run generate
+// Run generate as subprocess so module changes are always picked up
 const runGenerate = async () => {
     const start = performance.now();
     try {
-        const { runGenerate: generate } = await import("../src/generate/index.js");
-        await generate({ command: "generate", input: INPUT, output: OUTPUT, language: "ja" });
+        const proc = Bun.spawn(["bun", "run", "src/generate/cli-entry.ts", "--input", INPUT, "--output", OUTPUT, "--language", "ja"], {
+            cwd: resolve("."),
+            stdout: "inherit",
+            stderr: "inherit",
+        });
+        const code = await proc.exited;
         const ms = Math.round(performance.now() - start);
+        if (code !== 0) {
+            console.error(`Generate failed with exit code ${code}`);
+            return;
+        }
         console.log(`Generated in ${ms}ms`);
 
         // Notify all SSE clients

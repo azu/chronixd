@@ -21,27 +21,25 @@ export const renderTimelineEntries = (entries: TimelineEntry[]): string => {
         const view = getView(serviceDir);
         const results = view.render(serviceEntries);
 
-        // For 1-to-1 views, pair results with entries' timestamps
-        if (results.length === serviceEntries.length) {
-            for (let i = 0; i < results.length; i++) {
-                rendered.push({
-                    html: results[i].html,
-                    unixTimeMs: serviceEntries[i].unixTimeMs,
-                });
-            }
-        } else {
-            // For N-to-1 views (like location), use the first entry's timestamp
-            for (const result of results) {
-                rendered.push({
-                    html: result.html,
-                    unixTimeMs: serviceEntries[0].unixTimeMs,
-                });
-            }
+        for (const result of results) {
+            rendered.push({
+                html: result.html,
+                unixTimeMs: result.unixTimeMs,
+            });
         }
     }
 
     // Sort by time descending
     rendered.sort((a, b) => b.unixTimeMs - a.unixTimeMs);
 
-    return rendered.map((r) => r.html).join("\n");
+    // Add id + hidden h3 to each entry for Pagefind sub-result anchor links
+    let counter = 0;
+    return rendered.map((r) => {
+        const id = `e-${r.unixTimeMs}-${counter++}`;
+        const date = new Date(r.unixTimeMs);
+        const hh = String(date.getUTCHours()).padStart(2, "0");
+        const mm = String(date.getUTCMinutes()).padStart(2, "0");
+        const heading = `<h3 id="${id}" class="sr-only">${hh}:${mm}</h3>`;
+        return r.html.replace("<article ", `<article aria-labelledby="${id}" `) + heading;
+    }).join("\n");
 };

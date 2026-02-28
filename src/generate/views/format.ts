@@ -18,3 +18,7 @@ export const formatTime = (unixTimeMs: number): string => {
     });
     return formatter.format(new Date(unixTimeMs));
 };
+
+export const formatTimeRange = (startMs: number, endMs: number): string => {
+    return `${formatTime(startMs)} - ${formatTime(endMs)}`;
+};

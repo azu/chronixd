@@ -4,14 +4,19 @@ import { copyAssets } from "./assets.js";
 import { runPagefind } from "./search.js";
 import type { GenerateCliOptions } from "../cli.js";
 
-const detectMicroblogEndpoint = (): string | null => {
+type MicroblogConfig = {
+    endpoint: string;
+    token: string;
+} | null;
+
+const detectMicroblogConfig = (): MicroblogConfig => {
     const envsRaw = process.env.CHRONIXD_ENVS;
     if (!envsRaw) return null;
     try {
-        const envs = JSON.parse(envsRaw) as { type?: string; microblog_endpoint?: string }[];
+        const envs = JSON.parse(envsRaw) as { microblog_endpoint?: string; microblog_token?: string }[];
         for (const env of envs) {
-            if (env.type === "microblog" && env.microblog_endpoint) {
-                return env.microblog_endpoint;
+            if (env.microblog_endpoint && env.microblog_token) {
+                return { endpoint: env.microblog_endpoint, token: env.microblog_token };
             }
         }
     } catch {
@@ -23,11 +28,12 @@ const detectMicroblogEndpoint = (): string | null => {
 export const runGenerate = async (options: GenerateCliOptions): Promise<void> => {
     const records = await readAllRecords(options.input);
     const dayGroups = groupByDay(records);
-    const microblogEndpoint = detectMicroblogEndpoint();
+    const microblogConfig = detectMicroblogConfig();
 
     const generateOptions = {
         language: options.language,
-        microblogEndpoint,
+        microblogEndpoint: microblogConfig?.endpoint ?? null,
+        microblogToken: microblogConfig?.token ?? null,
     };
 
     await generateDayPages(options.output, dayGroups, generateOptions);

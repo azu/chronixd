@@ -3,9 +3,10 @@ type LayoutProps = {
     language: string;
     children: string;
     pathPrefix?: string; // relative path to root, e.g. "../../../"
+    microblogToken?: string | null;
 };
 
-export const Layout = ({ title, language, children, pathPrefix = "" }: LayoutProps): string => {
+export const Layout = ({ title, language, children, pathPrefix = "", microblogToken = null }: LayoutProps): string => {
     return (
         <html lang={language}>
             <head>
@@ -31,11 +32,23 @@ export const Layout = ({ title, language, children, pathPrefix = "" }: LayoutPro
                 <script dangerouslySetInnerHTML={{ __html: `
                     window.addEventListener('DOMContentLoaded', function() {
                         if (typeof PagefindUI !== 'undefined') {
-                            new PagefindUI({ element: "#search", showSubResults: true });
+                            new PagefindUI({ element: "#search", showSubResults: true, sort: { date: "desc" } });
                         }
                     });
                 ` }}></script>
+                {microblogToken ? <script dangerouslySetInnerHTML={{ __html: `
+                    (function(){
+                        var t="${microblogToken}";
+                        document.querySelectorAll("img[data-auth-src]").forEach(function(img){
+                            fetch(img.dataset.authSrc,{headers:{Authorization:"Bearer "+t}})
+                                .then(function(r){if(!r.ok)throw r;return r.blob()})
+                                .then(function(b){img.src=URL.createObjectURL(b)})
+                                .catch(function(){});
+                        });
+                    })();
+                ` }}></script> : ""}
                 <script src={`${pathPrefix}assets/post-client.js`} type="module"></script>
+                <script src={`${pathPrefix}assets/location-map.js`} defer></script>
             </body>
         </html>
     );

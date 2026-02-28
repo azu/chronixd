@@ -9,6 +9,7 @@ type DayPageProps = {
     nextDateKey: string | null;
     language: string;
     microblogEndpoint: string | null;
+    microblogToken: string | null;
 };
 
 const dateKeyToPath = (dateKey: string): string => {
@@ -30,20 +31,20 @@ const NavBar = ({ prevDateKey, nextDateKey, pathPrefix }: { prevDateKey: string 
     );
 };
 
-export const DayPage = ({ dayGroup, prevDateKey, nextDateKey, language, microblogEndpoint }: DayPageProps): string => {
+export const DayPage = ({ dayGroup, prevDateKey, nextDateKey, language, microblogEndpoint, microblogToken }: DayPageProps): string => {
     const { dateKey, entries } = dayGroup;
     const pathPrefix = "../../../";
     const title = `${dateKey} - chronixd`;
 
     const nav = NavBar({ prevDateKey, nextDateKey, pathPrefix });
     const timeline = renderTimelineEntries(entries);
-    const postForm = microblogEndpoint ? PostForm({ microblogEndpoint }) : "";
+    const postForm = microblogEndpoint && microblogToken ? PostForm({ microblogEndpoint, microblogToken }) : "";
 
-    const content = `<h1>${dateKey}</h1>`
+    const content = `<h1 data-pagefind-sort="date[datetime]" datetime="${dateKey}">${dateKey}</h1>`
         + postForm
         + nav
         + `<section class="timeline">${timeline}</section>`
         + nav;
 
-    return "<!DOCTYPE html>\n" + Layout({ title, language, children: content, pathPrefix });
+    return "<!DOCTYPE html>\n" + Layout({ title, language, children: content, pathPrefix, microblogToken });
 };

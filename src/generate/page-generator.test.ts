@@ -39,7 +39,7 @@ afterAll(async () => {
 describe("generateDayPages", () => {
     test("creates day HTML files", async () => {
         const dayGroups = makeDayGroups();
-        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null });
+        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null });
 
         const file1 = await fs.readFile(path.join(TEST_DIR, "2024", "01", "02.html"), "utf-8");
         expect(file1).toContain("<!DOCTYPE html>");
@@ -52,7 +52,7 @@ describe("generateDayPages", () => {
 
     test("includes navigation links", async () => {
         const dayGroups = makeDayGroups();
-        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null });
+        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null });
 
         const file1 = await fs.readFile(path.join(TEST_DIR, "2024", "01", "02.html"), "utf-8");
         // First day (newest) should have next link but no prev
@@ -60,9 +60,9 @@ describe("generateDayPages", () => {
         expect(file1).toContain("2024-01-01");
     });
 
-    test("includes post form when microblogEndpoint is set", async () => {
+    test("includes post form when microblogEndpoint and microblogToken are set", async () => {
         const dayGroups = makeDayGroups();
-        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: "https://api.example.com" });
+        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: "https://api.example.com", microblogToken: "test-token" });
 
         const file = await fs.readFile(path.join(TEST_DIR, "2024", "01", "01.html"), "utf-8");
         expect(file).toContain("post-form");
@@ -74,7 +74,7 @@ describe("generateDayPages", () => {
         await fs.mkdir(TEST_DIR, { recursive: true });
 
         const dayGroups = makeDayGroups();
-        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null });
+        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null });
 
         const file = await fs.readFile(path.join(TEST_DIR, "2024", "01", "01.html"), "utf-8");
         expect(file).not.toContain("post-form");
@@ -84,7 +84,7 @@ describe("generateDayPages", () => {
 describe("generateIndexPage", () => {
     test("creates index.html", async () => {
         const dayGroups = makeDayGroups();
-        await generateIndexPage(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null });
+        await generateIndexPage(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null });
 
         const file = await fs.readFile(path.join(TEST_DIR, "index.html"), "utf-8");
         expect(file).toContain("<!DOCTYPE html>");
@@ -95,7 +95,7 @@ describe("generateIndexPage", () => {
 
     test("shows entry counts per day", async () => {
         const dayGroups = makeDayGroups();
-        await generateIndexPage(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null });
+        await generateIndexPage(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null });
 
         const file = await fs.readFile(path.join(TEST_DIR, "index.html"), "utf-8");
         expect(file).toContain("1 entries");
