@@ -266,7 +266,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add db/ dist/ > /dev/null 2>&1
+          git add db/ > /dev/null 2>&1
           git diff --cached --quiet 2>/dev/null || git commit -m "chore: update db" > /dev/null 2>&1
           git push > /dev/null 2>&1
 ```
