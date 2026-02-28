@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
-import { generateDayPages, generateIndexPage } from "./page-generator.js";
+import { generateDayPages, generateIndexPage, filterFutureDays } from "./page-generator.js";
 import type { DayGroup } from "./reader.js";
 
 const TEST_DIR = path.join(process.cwd(), ".test-output-generate-pages");
@@ -34,6 +34,26 @@ beforeAll(async () => {
 
 afterAll(async () => {
     await fs.rm(TEST_DIR, { recursive: true, force: true });
+});
+
+describe("filterFutureDays", () => {
+    test("does not filter past days", () => {
+        const dayGroups = makeDayGroups();
+        const filtered = filterFutureDays(dayGroups);
+        // Debug: log the comparison details if running on CI
+        if (filtered.length !== dayGroups.length) {
+            const now = new Date();
+            const today = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
+            console.error("DEBUG filterFutureDays:", {
+                today,
+                nowISO: now.toISOString(),
+                dayGroupDateKeys: dayGroups.map((g) => g.dateKey),
+                filteredDateKeys: filtered.map((g) => g.dateKey),
+                comparisons: dayGroups.map((g) => `${g.dateKey} <= ${today} = ${g.dateKey <= today}`),
+            });
+        }
+        expect(filtered.length).toBe(dayGroups.length);
+    });
 });
 
 describe("generateDayPages", () => {

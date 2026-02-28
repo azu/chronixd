@@ -19,7 +19,7 @@ const getTodayDateKey = (): string => {
     return `${y}-${m}-${d}`;
 };
 
-const filterFutureDays = (dayGroups: DayGroup[]): DayGroup[] => {
+export const filterFutureDays = (dayGroups: DayGroup[]): DayGroup[] => {
     const today = getTodayDateKey();
     return dayGroups.filter((g) => g.dateKey <= today);
 };
