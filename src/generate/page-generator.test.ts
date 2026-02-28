@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
@@ -6,6 +5,8 @@ import { generateDayPages, generateIndexPage, filterFutureDays } from "./page-ge
 import type { DayGroup } from "./reader.js";
 
 const TEST_DIR = path.join(process.cwd(), ".test-output-generate-pages");
+// Use a far-future date so filterFutureDays never excludes test data
+const TEST_TODAY = "2099-12-31";
 
 const makeDayGroups = (): DayGroup[] => [
     {
@@ -38,21 +39,16 @@ afterAll(async () => {
 });
 
 describe("filterFutureDays", () => {
-    test("does not filter past days", () => {
+    test("filters out future days", () => {
         const dayGroups = makeDayGroups();
-        const filtered = filterFutureDays(dayGroups);
-        // Debug: log the comparison details if running on CI
-        if (filtered.length !== dayGroups.length) {
-            const now = new Date();
-            const today = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
-            console.error("DEBUG filterFutureDays:", {
-                today,
-                nowISO: now.toISOString(),
-                dayGroupDateKeys: dayGroups.map((g) => g.dateKey),
-                filteredDateKeys: filtered.map((g) => g.dateKey),
-                comparisons: dayGroups.map((g) => `${g.dateKey} <= ${today} = ${g.dateKey <= today}`),
-            });
-        }
+        const filtered = filterFutureDays(dayGroups, "2024-01-01");
+        expect(filtered.length).toBe(1);
+        expect(filtered[0].dateKey).toBe("2024-01-01");
+    });
+
+    test("keeps all past days", () => {
+        const dayGroups = makeDayGroups();
+        const filtered = filterFutureDays(dayGroups, TEST_TODAY);
         expect(filtered.length).toBe(dayGroups.length);
     });
 });
@@ -60,7 +56,7 @@ describe("filterFutureDays", () => {
 describe("generateDayPages", () => {
     test("creates day HTML files", async () => {
         const dayGroups = makeDayGroups();
-        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null });
+        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null, today: TEST_TODAY });
 
         const file1 = await fs.readFile(path.join(TEST_DIR, "2024", "01", "02.html"), "utf-8");
         expect(file1).toContain("<!DOCTYPE html>");
@@ -73,7 +69,7 @@ describe("generateDayPages", () => {
 
     test("includes navigation links", async () => {
         const dayGroups = makeDayGroups();
-        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null });
+        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null, today: TEST_TODAY });
 
         const file1 = await fs.readFile(path.join(TEST_DIR, "2024", "01", "02.html"), "utf-8");
         // First day (newest) should have next link but no prev
@@ -83,7 +79,7 @@ describe("generateDayPages", () => {
 
     test("includes post form when microblogEndpoint and microblogToken are set", async () => {
         const dayGroups = makeDayGroups();
-        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: "https://api.example.com", microblogToken: "test-token" });
+        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: "https://api.example.com", microblogToken: "test-token", today: TEST_TODAY });
 
         const file = await fs.readFile(path.join(TEST_DIR, "2024", "01", "01.html"), "utf-8");
         expect(file).toContain("post-form");
@@ -95,7 +91,7 @@ describe("generateDayPages", () => {
         await fs.mkdir(TEST_DIR, { recursive: true });
 
         const dayGroups = makeDayGroups();
-        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null });
+        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null, today: TEST_TODAY });
 
         const file = await fs.readFile(path.join(TEST_DIR, "2024", "01", "01.html"), "utf-8");
         expect(file).not.toContain("post-form");
@@ -105,7 +101,7 @@ describe("generateDayPages", () => {
 describe("generateIndexPage", () => {
     test("creates index.html", async () => {
         const dayGroups = makeDayGroups();
-        await generateIndexPage(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null });
+        await generateIndexPage(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null, today: TEST_TODAY });
 
         const file = await fs.readFile(path.join(TEST_DIR, "index.html"), "utf-8");
         expect(file).toContain("<!DOCTYPE html>");
@@ -116,7 +112,7 @@ describe("generateIndexPage", () => {
 
     test("shows entry counts per day", async () => {
         const dayGroups = makeDayGroups();
-        await generateIndexPage(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null });
+        await generateIndexPage(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null, today: TEST_TODAY });
 
         const file = await fs.readFile(path.join(TEST_DIR, "index.html"), "utf-8");
         expect(file).toContain("1 entries");

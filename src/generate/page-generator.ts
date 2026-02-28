@@ -9,6 +9,7 @@ type GenerateOptions = {
     language: string;
     microblogEndpoint: string | null;
     microblogToken: string | null;
+    today?: string;
 };
 
 const getTodayDateKey = (): string => {
@@ -19,8 +20,8 @@ const getTodayDateKey = (): string => {
     return `${y}-${m}-${d}`;
 };
 
-export const filterFutureDays = (dayGroups: DayGroup[]): DayGroup[] => {
-    const today = getTodayDateKey();
+export const filterFutureDays = (dayGroups: DayGroup[], todayOverride?: string): DayGroup[] => {
+    const today = todayOverride ?? getTodayDateKey();
     return dayGroups.filter((g) => g.dateKey <= today);
 };
 
@@ -29,7 +30,7 @@ export const generateDayPages = async (
     dayGroups: DayGroup[],
     options: GenerateOptions
 ): Promise<void> => {
-    const filtered = filterFutureDays(dayGroups);
+    const filtered = filterFutureDays(dayGroups, options.today);
     for (let i = 0; i < filtered.length; i++) {
         const dayGroup = filtered[i];
         const prevDateKey = i > 0 ? filtered[i - 1].dateKey : null;
@@ -56,7 +57,7 @@ export const generateIndexPage = async (
     dayGroups: DayGroup[],
     options: GenerateOptions
 ): Promise<void> => {
-    const filtered = filterFutureDays(dayGroups);
+    const filtered = filterFutureDays(dayGroups, options.today);
     const html = IndexPage({
         dayGroups: filtered,
         language: options.language,
@@ -65,7 +66,7 @@ export const generateIndexPage = async (
     await fs.writeFile(path.join(outputDir, "index.html"), html, "utf-8");
 
     // Copy today's page to today.html at root
-    const today = getTodayDateKey();
+    const today = options.today ?? getTodayDateKey();
     const todayGroup = filtered.find((g) => g.dateKey === today);
     if (todayGroup) {
         const [y, m, d] = today.split("-");
