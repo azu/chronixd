@@ -99,6 +99,32 @@ export const Layout = ({ title, language, children, pathPrefix = "", microblogTo
                         });
                     })();
                 ` }}></script> : ""}
+                <script dangerouslySetInnerHTML={{ __html: `
+                    (function(){
+                        var fmt=new Intl.DateTimeFormat(undefined,{hour:"2-digit",minute:"2-digit",hourCycle:"h23"});
+                        var now=Date.now();
+                        var DAY=864e5;
+                        var rtf;
+                        try{rtf=new Intl.RelativeTimeFormat(undefined,{numeric:"auto"})}catch(e){}
+                        document.querySelectorAll("time.entry-time[datetime]").forEach(function(el){
+                            var dt=new Date(el.getAttribute("datetime"));
+                            if(isNaN(dt))return;
+                            var end=el.dataset.end?new Date(el.dataset.end):null;
+                            if(end&&!isNaN(end)){
+                                el.textContent=fmt.format(dt)+" - "+fmt.format(end);
+                                return;
+                            }
+                            var diff=now-dt.getTime();
+                            if(rtf&&diff>=0&&diff<DAY){
+                                var m=Math.floor(diff/6e4);
+                                var h=Math.floor(diff/36e5);
+                                el.textContent=m<1?rtf.format(0,"minute"):h<1?rtf.format(-m,"minute"):rtf.format(-h,"hour");
+                            }else{
+                                el.textContent=fmt.format(dt);
+                            }
+                        });
+                    })();
+                ` }}></script>
                 <script src={`${pathPrefix}assets/post-client.js`} type="module"></script>
                 <script src={`${pathPrefix}assets/location-map.js`} defer></script>
             </body>

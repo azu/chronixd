@@ -2,7 +2,7 @@ import type { TimelineEntry } from "../reader.js";
 import type { SlackAttachment } from "../../common/types.js";
 import type { ServiceView, ViewResult } from "./types.js";
 import { safeUrl } from "./safe-url.js";
-import { formatTime } from "./format.js";
+import { formatTime, toISO } from "./format.js";
 import { getServiceIcon } from "./icons.js";
 
 const escapeHtml = (s: string): string =>
@@ -46,7 +46,7 @@ const SlackEntryView = ({ entry }: { entry: TimelineEntry }): string => {
 
     return (
         <article class="timeline-entry timeline-entry--slack">
-            <time class="entry-time">{time}</time>
+            <time class="entry-time" datetime={toISO(entry.unixTimeMs)}>{time}</time>
             <span class="entry-badge" dangerouslySetInnerHTML={{ __html: `${getServiceIcon("slack")} Slack` }}></span>
             <span class="entry-meta">#{channel}</span>
             <div class="entry-body" dangerouslySetInnerHTML={{ __html: textHtml }}></div>

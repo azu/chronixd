@@ -1,7 +1,7 @@
 import type { TimelineEntry } from "../reader.js";
 import type { ServiceView, ViewResult } from "./types.js";
 import { safeUrl } from "./safe-url.js";
-import { formatTime } from "./format.js";
+import { formatTime, toISO } from "./format.js";
 import { getServiceIcon } from "./icons.js";
 
 const escapeHtml = (s: string): string =>
@@ -30,7 +30,7 @@ const GitHubGroupView = ({ repo, entries }: { repo: string; entries: TimelineEnt
 
     return (
         <article class="timeline-entry timeline-entry--github">
-            <time class="entry-time">{time}</time>
+            <time class="entry-time" datetime={toISO(entries[0].unixTimeMs)}>{time}</time>
             <span class="entry-badge" dangerouslySetInnerHTML={{ __html: `${getServiceIcon("github")} GitHub` }}></span>
             <span class="entry-body">{repo}</span>
             <ul class="entry-list" dangerouslySetInnerHTML={{ __html: eventLines.map((line) => `<li>${line}</li>`).join("") }}></ul>
