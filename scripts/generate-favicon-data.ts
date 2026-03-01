@@ -18,6 +18,7 @@ export const faviconPng16 = "${png16.toString("base64")}";
 `;
 
 await fs.writeFile(OUTPUT_PATH, output, "utf-8");
+/* eslint-disable no-console */
 console.log("Generated favicon-data.ts");
 console.log(`  apple-touch-icon (180x180): ${png180.length} bytes`);
 console.log(`  favicon-32x32: ${png32.length} bytes`);
