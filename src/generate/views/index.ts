@@ -9,6 +9,7 @@ import { linearView } from "./linear.js";
 import { bookmarkView } from "./bookmark.js";
 import { wakatimeView } from "./wakatime.js";
 import { githubView } from "./github.js";
+import { notionView } from "./notion.js";
 
 const viewMap: Record<string, ServiceView> = {
     bluesky: blueskyView,
@@ -21,6 +22,7 @@ const viewMap: Record<string, ServiceView> = {
     wakatime: wakatimeView,
     "github-events": githubView,
     "github-search": githubView,
+    notion: notionView,
 };
 
 export const getView = (serviceDir: string): ServiceView => {
