@@ -1,10 +1,10 @@
 /* chronixd timeline — editorial journal aesthetic */
 
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap');
+
 @view-transition {
     navigation: auto;
 }
-
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap');
 
 :root {
     --font-body: 'Literata', 'Georgia', serif;
