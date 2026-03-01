@@ -1,60 +1,19 @@
-// chronixd post client — handles microblog posting, offline queue, local post cache
+// chronixd post client — handles microblog posting and API-based timeline updates
 
-const DB_NAME = "chronixd-posts";
-const DB_VERSION = 2;
-const PENDING_STORE = "pending";
-const POSTED_STORE = "posted";
+const microblogIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
 
-const openDB = () => {
-    return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, DB_VERSION);
-        req.onupgradeneeded = (e) => {
-            const db = req.result;
-            if (!db.objectStoreNames.contains(PENDING_STORE)) {
-                db.createObjectStore(PENDING_STORE, { keyPath: "id", autoIncrement: true });
-            }
-            if (!db.objectStoreNames.contains(POSTED_STORE)) {
-                db.createObjectStore(POSTED_STORE, { keyPath: "id", autoIncrement: true });
-            }
-        };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-    });
-};
-
-const dbAdd = async (storeName, item) => {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, "readwrite");
-        tx.objectStore(storeName).add(item);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-    });
-};
-
-const dbGetAll = async (storeName) => {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, "readonly");
-        const req = tx.objectStore(storeName).getAll();
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-    });
-};
-
-const dbDelete = async (storeName, id) => {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, "readwrite");
-        tx.objectStore(storeName).delete(id);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-    });
-};
-
-const getToken = () => {
+const getConfig = () => {
     const form = document.querySelector(".post-form");
-    return form ? (form.dataset.token || "") : "";
+    if (form) {
+        return {
+            endpoint: form.dataset.endpoint || "",
+            token: form.dataset.token || "",
+        };
+    }
+    return {
+        endpoint: document.body.dataset.microblogEndpoint || "",
+        token: document.body.dataset.microblogToken || "",
+    };
 };
 
 const setStatus = (msg, type = "") => {
@@ -64,13 +23,19 @@ const setStatus = (msg, type = "") => {
     el.className = "post-status" + (type ? ` post-status--${type}` : "");
 };
 
-const uploadImage = async (endpoint, file) => {
+const escapeHtml = (str) => {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+};
+
+const uploadImage = async (endpoint, token, file) => {
     const formData = new FormData();
     formData.append("file", file);
 
     const res = await fetch(`${endpoint}/api/media`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}` },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
     });
 
@@ -78,11 +43,11 @@ const uploadImage = async (endpoint, file) => {
     return res.json();
 };
 
-const submitPost = async (endpoint, text, images) => {
+const submitPost = async (endpoint, token, text, images) => {
     const res = await fetch(`${endpoint}/api/posts`, {
         method: "POST",
         headers: {
-            Authorization: `Bearer ${getToken()}`,
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
         },
         body: JSON.stringify({ text, images }),
@@ -90,33 +55,6 @@ const submitPost = async (endpoint, text, images) => {
 
     if (!res.ok) throw new Error(`Post failed: ${res.status}`);
     return res.json();
-};
-
-const escapeHtml = (str) => {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
-};
-
-// Collect text content of existing static entries for dedup
-const getStaticEntryTexts = () => {
-    const texts = new Set();
-    for (const el of document.querySelectorAll(".timeline .entry-body")) {
-        const t = el.textContent.trim();
-        if (t) texts.add(t);
-    }
-    return texts;
-};
-
-// Remove posted items that already appear in the static HTML
-const cleanupPosted = async () => {
-    const staticTexts = getStaticEntryTexts();
-    const posted = await dbGetAll(POSTED_STORE);
-    for (const post of posted) {
-        if (staticTexts.has(post.text.trim())) {
-            await dbDelete(POSTED_STORE, post.id);
-        }
-    }
 };
 
 const isTodayPage = () => {
@@ -129,73 +67,127 @@ const isTodayPage = () => {
     return p.endsWith(`/${y}/${m}/${d}.html`);
 };
 
-const renderLocalPosts = async () => {
-    const timeline = document.querySelector(".timeline");
-    if (!timeline || !isTodayPage()) return;
+const createMicroblogEntry = (post) => {
+    const el = document.createElement("article");
+    el.className = "timeline-entry timeline-entry--microblog";
 
-    const existing = document.querySelector(".local-posts");
-    if (existing) existing.remove();
+    const dt = new Date(post.unixTimeMs);
+    const time = new Intl.DateTimeFormat(undefined, {
+        hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).format(dt);
+    const iso = dt.toISOString();
 
-    const buildTime = document.body.dataset.buildTime;
-    const buildTs = buildTime ? new Date(buildTime).getTime() : 0;
+    const imagesHtml = (post.images || [])
+        .map((img) => {
+            const w = img.width ? ` width="${img.width}"` : "";
+            const h = img.height ? ` height="${img.height}"` : "";
+            return `<img data-auth-src="${escapeHtml(img.url)}" class="entry-image" loading="lazy" alt=""${w}${h}>`;
+        })
+        .join("");
 
-    const pending = await dbGetAll(PENDING_STORE);
-    const posted = await dbGetAll(POSTED_STORE);
-    const all = [
-        ...pending.map((p) => ({ ...p, status: "pending" })),
-        ...posted.filter((p) => p.createdAt > buildTs).map((p) => ({ ...p, status: "posted" })),
-    ];
-    if (all.length === 0) return;
+    el.innerHTML = `
+        <time class="entry-time" datetime="${iso}">${time}</time>
+        <span class="entry-badge">${microblogIcon} Microblog</span>
+        <div class="entry-body">${escapeHtml(post.text)}</div>
+        ${imagesHtml ? `<div class="entry-images">${imagesHtml}</div>` : ""}
+    `;
 
-    // Sort newest first
-    all.sort((a, b) => b.createdAt - a.createdAt);
-
-    const container = document.createElement("div");
-    container.className = "local-posts";
-
-    for (const post of all) {
-        const el = document.createElement("article");
-        el.className = "timeline-entry timeline-entry--microblog";
-        const time = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(post.createdAt));
-        const badge = post.status === "pending" ? "PENDING" : "POSTED";
-        const imagesHtml = (post.images || [])
-            .map((img) => {
-                const w = img.width ? ` width="${img.width}"` : "";
-                const h = img.height ? ` height="${img.height}"` : "";
-                return `<img src="${escapeHtml(img.url)}" class="entry-image" loading="lazy" alt=""${w}${h}>`;
-            })
-            .join("");
-        el.innerHTML = `
-            <time class="entry-time">${time}</time>
-            <span class="entry-badge">${badge}</span>
-            <div class="entry-body">${escapeHtml(post.text)}</div>
-            ${imagesHtml ? `<div class="entry-images">${imagesHtml}</div>` : ""}
-        `;
-        container.appendChild(el);
-    }
-
-    timeline.parentNode.insertBefore(container, timeline);
+    return el;
 };
 
-const processQueue = async () => {
-    const form = document.querySelector(".post-form");
-    if (!form) return;
+const loadAuthImages = (container) => {
+    const { token } = getConfig();
+    if (!token) return;
+    for (const img of container.querySelectorAll("img[data-auth-src]")) {
+        fetch(img.dataset.authSrc, { headers: { Authorization: `Bearer ${token}` } })
+            .then((r) => { if (!r.ok) throw r; return r.blob(); })
+            .then((b) => { img.src = URL.createObjectURL(b); })
+            .catch(() => {});
+    }
+};
 
-    const endpoint = form.dataset.endpoint;
-    if (!endpoint) return;
+const formatEntryTimes = (container) => {
+    const fmt = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    const now = Date.now();
+    const DAY = 864e5;
+    let rtf;
+    try { rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }); } catch (_e) { /* ignore */ }
 
-    const posts = await dbGetAll(PENDING_STORE);
-    for (const post of posts) {
-        try {
-            await submitPost(endpoint, post.text, post.images || []);
-            await dbDelete(PENDING_STORE, post.id);
-            // Move to posted store so it stays visible
-            await dbAdd(POSTED_STORE, { text: post.text, images: post.images || [], createdAt: post.createdAt });
-        } catch {
-            break;
+    for (const el of container.querySelectorAll("time.entry-time[datetime]")) {
+        const dt = new Date(el.getAttribute("datetime"));
+        if (Number.isNaN(dt.getTime())) continue;
+        const diff = now - dt.getTime();
+        if (rtf && diff >= 0 && diff < DAY) {
+            const m = Math.floor(diff / 6e4);
+            const h = Math.floor(diff / 36e5);
+            el.textContent = m < 1 ? rtf.format(0, "minute") : h < 1 ? rtf.format(-m, "minute") : rtf.format(-h, "hour");
+        } else {
+            el.textContent = fmt.format(dt);
         }
     }
-    await renderLocalPosts();
+};
+
+const fetchAndRenderApiPosts = async () => {
+    if (!isTodayPage()) return;
+    const { endpoint, token } = getConfig();
+    if (!endpoint || !token) return;
+
+    const buildTime = document.body.dataset.buildTime;
+    const sinceMs = buildTime ? new Date(buildTime).getTime() : 0;
+
+    let res;
+    try {
+        res = await fetch(`${endpoint}/api/posts.ndjson?since=${sinceMs}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+    } catch (cause) {
+        console.error(new Error("[chronixd] Failed to fetch microblog posts", { cause }));
+        return;
+    }
+    if (!res.ok) {
+        console.error(new Error(`[chronixd] Microblog API returned ${res.status}`, { cause: res }));
+        return;
+    }
+
+    const body = await res.text();
+    if (!body.trim()) return;
+
+    const posts = body.trimEnd().split("\n")
+        .filter((line) => line.length > 0)
+        .map((line) => JSON.parse(line));
+
+    // Filter: only today's posts that are newer than build time
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const todayEnd = todayStart + 864e5;
+    const newPosts = posts.filter((p) => p.unixTimeMs >= todayStart && p.unixTimeMs < todayEnd && p.unixTimeMs > sinceMs);
+
+    if (newPosts.length === 0) return;
+
+    // Sort newest first
+    newPosts.sort((a, b) => b.unixTimeMs - a.unixTimeMs);
+
+    const timeline = document.querySelector(".timeline");
+    if (!timeline) return;
+
+    // Remove previously inserted API entries before re-rendering
+    for (const el of timeline.querySelectorAll(".timeline-entry--api")) {
+        el.remove();
+    }
+
+    const fragment = document.createDocumentFragment();
+    for (const post of newPosts) {
+        const el = createMicroblogEntry(post);
+        el.classList.add("timeline-entry--api");
+        fragment.appendChild(el);
+    }
+
+    // Prepend to timeline (newest API posts above existing static entries)
+    timeline.insertBefore(fragment, timeline.firstChild);
+
+    // Process dynamically added entries
+    loadAuthImages(timeline);
+    formatEntryTimes(timeline);
 };
 
 const initPostForm = () => {
@@ -203,7 +195,7 @@ const initPostForm = () => {
     const postFormSection = document.querySelector(".post-form");
     if (!form || !postFormSection) return;
 
-    const endpoint = postFormSection.dataset.endpoint;
+    const { endpoint, token } = getConfig();
     if (!endpoint) return;
 
     const textEl = document.getElementById("post-text");
@@ -244,20 +236,13 @@ const initPostForm = () => {
             const images = [];
             if (fileInput && fileInput.files.length > 0) {
                 for (const file of fileInput.files) {
-                    const imageMeta = await uploadImage(endpoint, file);
+                    const imageMeta = await uploadImage(endpoint, token, file);
                     images.push(imageMeta);
                 }
             }
 
-            if (!navigator.onLine) {
-                await dbAdd(PENDING_STORE, { text, images, createdAt: Date.now() });
-                setStatus("Saved offline. Will sync when online.", "success");
-            } else {
-                await submitPost(endpoint, text, images);
-                // Save to posted store so it persists across reloads
-                await dbAdd(POSTED_STORE, { text, images, createdAt: Date.now() });
-                setStatus("Posted!", "success");
-            }
+            await submitPost(endpoint, token, text, images);
+            setStatus("Posted!", "success");
 
             textEl.value = "";
             if (fileInput) fileInput.value = "";
@@ -268,11 +253,11 @@ const initPostForm = () => {
                 setTimeout(() => { if (history.length > 1) history.back(); else location.href = "today.html"; }, 500);
                 return;
             }
-            await renderLocalPosts();
+
+            // Re-fetch from API to show the new post in timeline
+            await fetchAndRenderApiPosts();
         } catch (err) {
-            await dbAdd(PENDING_STORE, { text, images: [], createdAt: Date.now() });
-            setStatus(`Failed: ${err.message}. Queued for retry.`, "error");
-            await renderLocalPosts();
+            setStatus(`Failed: ${err.message}`, "error");
         } finally {
             submitBtn.disabled = false;
         }
@@ -303,21 +288,14 @@ const initLightbox = () => {
 
 // Init
 document.addEventListener("DOMContentLoaded", async () => {
-    await cleanupPosted();
     initPostForm();
-    await renderLocalPosts();
+    await fetchAndRenderApiPosts();
     initLightbox();
 });
 
-// Re-render local posts when navigating back (bfcache restore)
+// Re-fetch when navigating back (bfcache restore)
 window.addEventListener("pageshow", async (e) => {
     if (e.persisted) {
-        await cleanupPosted();
-        await renderLocalPosts();
+        await fetchAndRenderApiPosts();
     }
-});
-
-// Online: process pending queue
-window.addEventListener("online", () => {
-    processQueue();
 });

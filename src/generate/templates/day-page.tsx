@@ -45,5 +45,5 @@ export const DayPage = ({ dayGroup, prevDateKey, nextDateKey, language, microblo
         + `<section class="timeline">${timeline}</section>`
         + nav;
 
-    return "<!DOCTYPE html>\n" + Layout({ title, language, children: content, pathPrefix, microblogToken, hasMicroblog });
+    return "<!DOCTYPE html>\n" + Layout({ title, language, children: content, pathPrefix, microblogEndpoint, microblogToken, hasMicroblog });
 };
