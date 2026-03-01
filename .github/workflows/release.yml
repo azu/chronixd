@@ -20,9 +20,6 @@ jobs:
             target: linux-arm64
           - os: macos-latest
             target: darwin-arm64
-          - os: macos-latest
-            target: darwin-x64
-            cross: true
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
@@ -33,16 +30,8 @@ jobs:
           bun-version-file: "package.json"
       - name: Install
         run: bun install
-      - name: Install cross-platform pagefind
-        if: matrix.cross
-        run: bun add @pagefind/darwin-x64
       - name: Build
-        run: |
-          if [ "${{ matrix.cross }}" = "true" ]; then
-            bun build src/index.ts --compile --target=bun-darwin-x64 --outfile chronixd-${{ matrix.target }}
-          else
-            bun build src/index.ts --compile --outfile chronixd-${{ matrix.target }}
-          fi
+        run: bun build src/index.ts --compile --outfile chronixd-${{ matrix.target }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: chronixd-${{ matrix.target }}
