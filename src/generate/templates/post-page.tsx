@@ -7,7 +7,7 @@ type PostPageProps = {
 };
 
 export const PostPage = ({ language, microblogEndpoint, microblogToken }: PostPageProps): string => {
-    const postForm = PostForm({ microblogEndpoint, microblogToken });
+    const postForm = PostForm({ microblogEndpoint, microblogToken, autofocus: true });
 
     return "<!DOCTYPE html>\n" + (
         <html lang={language}>
@@ -18,9 +18,9 @@ export const PostPage = ({ language, microblogEndpoint, microblogToken }: PostPa
                 <title>Post - chronixd</title>
                 <link rel="stylesheet" href="assets/style.css" />
                 <style dangerouslySetInnerHTML={{ __html: `
-                    main { max-width: 480px; width: 100%; margin: 0 auto; padding: 1.5rem 1rem; }
                     main h1 { font-size: 1.1rem; margin: 0 0 1rem; }
                     #post-text { min-height: 120px; }
+                    @media (min-width: 601px) { #post-text:focus { min-height: 200px; } }
                 ` }}></style>
             </head>
             <body>
