@@ -243,7 +243,7 @@ jobs:
 
       - name: Download chronixd
         run: |
-          curl -L https://github.com/azu/chronixd/releases/download/${{env.CHRONIXD_VERSION}}/chronixd -o chronixd
+          curl -L https://github.com/azu/chronixd/releases/download/${{env.CHRONIXD_VERSION}}/chronixd-linux-x64 -o chronixd
           chmod +x chronixd
 
       - name: Run chronixd
