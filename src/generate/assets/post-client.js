@@ -293,9 +293,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     initLightbox();
 });
 
-// Re-fetch when navigating back (bfcache restore)
-window.addEventListener("pageshow", async (e) => {
+// Reload with View Transition when navigating back (bfcache restore)
+window.addEventListener("pageshow", (e) => {
     if (e.persisted) {
-        await fetchAndRenderApiPosts();
+        if (document.startViewTransition) {
+            document.startViewTransition(() => location.reload());
+        } else {
+            location.reload();
+        }
+    }
+});
+
+// Reload when tab becomes visible again (e.g. switching back from another tab)
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    if (document.startViewTransition) {
+        document.startViewTransition(() => location.reload());
+    } else {
+        location.reload();
     }
 });

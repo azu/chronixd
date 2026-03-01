@@ -476,6 +476,13 @@ h2 {
     font-size: 0.8rem;
 }
 
+.commit-messages {
+    padding-left: 1.2rem;
+    margin: 0.2rem 0 0;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
 .location-map {
     grid-column: 1 / -1;
     margin-top: 0.5rem;
