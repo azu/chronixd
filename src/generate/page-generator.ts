@@ -65,13 +65,23 @@ export const generateIndexPage = async (
 
     await fs.writeFile(path.join(outputDir, "index.html"), html, "utf-8");
 
-    // Copy today's page to today.html at root
+    // Generate today.html at root with correct pathPrefix
     const today = options.today ?? getTodayDateKey();
-    const todayGroup = filtered.find((g) => g.dateKey === today);
-    if (todayGroup) {
-        const [y, m, d] = today.split("-");
-        const todayFile = path.join(outputDir, y, m, `${d}.html`);
-        await fs.copyFile(todayFile, path.join(outputDir, "today.html"));
+    const todayIndex = filtered.findIndex((g) => g.dateKey === today);
+    if (todayIndex >= 0) {
+        const todayGroup = filtered[todayIndex];
+        const prevDateKey = todayIndex > 0 ? filtered[todayIndex - 1].dateKey : null;
+        const nextDateKey = todayIndex < filtered.length - 1 ? filtered[todayIndex + 1].dateKey : null;
+        const todayHtml = DayPage({
+            dayGroup: todayGroup,
+            prevDateKey,
+            nextDateKey,
+            language: options.language,
+            microblogEndpoint: options.microblogEndpoint,
+            microblogToken: options.microblogToken,
+            pathPrefix: "",
+        });
+        await fs.writeFile(path.join(outputDir, "today.html"), todayHtml, "utf-8");
     }
 
     // Generate post page if microblog is configured

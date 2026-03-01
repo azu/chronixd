@@ -9,6 +9,7 @@ type DayPageProps = {
     language: string;
     microblogEndpoint: string | null;
     microblogToken: string | null;
+    pathPrefix?: string;
 };
 
 const dateKeyToPath = (dateKey: string): string => {
@@ -30,9 +31,9 @@ const NavBar = ({ prevDateKey, nextDateKey, pathPrefix }: { prevDateKey: string 
     );
 };
 
-export const DayPage = ({ dayGroup, prevDateKey, nextDateKey, language, microblogEndpoint, microblogToken }: DayPageProps): string => {
+export const DayPage = ({ dayGroup, prevDateKey, nextDateKey, language, microblogEndpoint, microblogToken, pathPrefix: pathPrefixOverride }: DayPageProps): string => {
     const { dateKey, entries } = dayGroup;
-    const pathPrefix = "../../";
+    const pathPrefix = pathPrefixOverride ?? "../../";
     const title = `${dateKey} - chronixd`;
 
     const nav = NavBar({ prevDateKey, nextDateKey, pathPrefix });
