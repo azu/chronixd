@@ -57,17 +57,9 @@ const fetchAsocialBookmark = async (
     const monthDates = getMonthDates();
     const allRecords: BookmarkRecord[] = [];
     for (const date of monthDates) {
-        try {
-            const items = await bookmark.getBookmarksAt(date);
-            info("getBookmarksAt(%s): %d items", date.toISOString(), items.length);
-            allRecords.push(...items.map(toBookmarkRecord));
-        } catch (e) {
-            if (e instanceof Error && e.message.includes("Not Found")) {
-                info("getBookmarksAt(%s): no data yet", date.toISOString());
-                continue;
-            }
-            throw e;
-        }
+        const items = await bookmark.getBookmarksAt(date);
+        info("getBookmarksAt(%s): %d items", date.toISOString(), items.length);
+        allRecords.push(...items.map(toBookmarkRecord));
     }
     return {
         records: allRecords,
