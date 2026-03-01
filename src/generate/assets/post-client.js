@@ -265,7 +265,7 @@ const initPostForm = () => {
 
             // Close post page after successful post
             if (location.pathname.endsWith("/post.html")) {
-                setTimeout(() => history.back(), 500);
+                setTimeout(() => { if (history.length > 1) history.back(); else location.href = "today.html"; }, 500);
                 return;
             }
             await renderLocalPosts();

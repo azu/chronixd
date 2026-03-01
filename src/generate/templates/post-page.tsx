@@ -27,10 +27,10 @@ export const PostPage = ({ language, microblogEndpoint, microblogToken }: PostPa
                 ` }}></style>
             </head>
             <body>
-                <main dangerouslySetInnerHTML={{ __html: `<div class="post-page-header"><h1>New Post</h1><a href="javascript:history.back()" class="post-page-close">Close</a></div>${postForm}` }}>
+                <main dangerouslySetInnerHTML={{ __html: `<div class="post-page-header"><h1>New Post</h1><a href="javascript:void(0)" onclick="goBack()" class="post-page-close">Close</a></div>${postForm}` }}>
                 </main>
                 <script src="assets/post-client.js" type="module"></script>
-                <script dangerouslySetInnerHTML={{ __html: `document.addEventListener("keydown",function(e){if(e.key==="Escape")history.back()})` }}></script>
+                <script dangerouslySetInnerHTML={{ __html: `function goBack(){if(history.length>1){history.back()}else{location.href="today.html"}}document.addEventListener("keydown",function(e){if(e.key==="Escape")goBack()})` }}></script>
             </body>
         </html>
     );
