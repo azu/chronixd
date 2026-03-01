@@ -11,7 +11,9 @@ import { faviconPng180, faviconPng32, faviconPng16 } from "./assets/favicon-data
 
 const ASSETS: Record<string, string> = {
     "style.css": styleCSS,
+    // @ts-expect-error Bun text import — tsc resolves .js as module, not text
     "post-client.js": postClientJS,
+    // @ts-expect-error Bun text import — tsc resolves .js as module, not text
     "location-map.js": locationMapJS,
 };
 
