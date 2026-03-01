@@ -100,14 +100,7 @@ export const readAllRecords = async (inputDir: string, since?: string | null): P
         }
     }
 
-    // Deduplicate by url + unixTimeMs
-    const seen = new Set<string>();
-    return allEntries.filter((entry) => {
-        const key = `${entry.url ?? ""}:${entry.unixTimeMs}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-    });
+    return allEntries;
 };
 
 export const groupByDay = (records: TimelineEntry[]): DayGroup[] => {
@@ -115,9 +108,9 @@ export const groupByDay = (records: TimelineEntry[]): DayGroup[] => {
 
     for (const record of records) {
         const date = new Date(record.unixTimeMs);
-        const year = date.getUTCFullYear();
-        const month = date.getUTCMonth() + 1;
-        const day = date.getUTCDate();
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
         const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
         const existing = dayMap.get(dateKey);
