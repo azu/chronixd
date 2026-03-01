@@ -7,11 +7,37 @@ import { getServiceIcon } from "./icons.js";
 const escapeHtml = (s: string): string =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+const formatCommitMessages = (body: string): string => {
+    // body is "- msg1\n- msg2" format from PushEvent
+    return body
+        .split("\n")
+        .filter((line) => line.startsWith("- "))
+        .map((line) => {
+            const msg = line.slice(2).trim();
+            // Use only the first line of each commit message
+            const firstLine = msg.split("\n")[0];
+            return `<li>${escapeHtml(firstLine)}</li>`;
+        })
+        .join("");
+};
+
 const formatEventLine = (entry: TimelineEntry): string => {
     const eventType = (entry as { eventType?: string }).eventType ?? (entry as { resultType?: string }).resultType ?? "";
     const title = (entry as { title?: string }).title ?? (entry as { issueTitle?: string }).issueTitle ?? "";
+    const body = (entry as { body?: string }).body ?? "";
     const number = (entry as { number?: number }).number;
     const url = entry.url ? safeUrl(entry.url) : null;
+
+    // For PushEvent, show commit messages from body instead of generic title
+    if (eventType === "PushEvent" && body) {
+        const commitList = formatCommitMessages(body);
+        if (commitList) {
+            const link = url
+                ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Push</a>`
+                : "Push";
+            return `${link}<ul class="commit-messages">${commitList}</ul>`;
+        }
+    }
 
     const label = title
         ? `${escapeHtml(eventType)}: ${escapeHtml(title)}${number ? ` #${number}` : ""}`
