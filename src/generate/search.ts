@@ -1,21 +1,5 @@
-import { execFile } from "child_process";
-
-const findPagefind = async (): Promise<string | null> => {
-    // Check if pagefind or pagefind_extended is available in PATH
-    for (const name of ["pagefind_extended", "pagefind"]) {
-        try {
-            const proc = Bun.spawn(["which", name], { stdout: "pipe", stderr: "ignore" });
-            await proc.exited;
-            if (proc.exitCode === 0) {
-                const path = await new Response(proc.stdout).text();
-                return path.trim();
-            }
-        } catch {
-            // not found, continue
-        }
-    }
-    return null;
-};
+import { execFile } from "node:child_process";
+import { getEmbeddedPagefind } from "./pagefind-bin";
 
 const runPagefindCli = (bin: string, args: string[]): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -50,16 +34,11 @@ export const runPagefind = async (outputDir: string, language: string): Promise<
         await pagefind.close();
         return;
     } catch {
-        // Node API not available, try CLI fallback
+        // Node API not available, use embedded binary
     }
 
-    // Fallback: run pagefind CLI as subprocess
-    const bin = await findPagefind();
-    if (!bin) {
-        // pagefind not available at all, skip search indexing
-        return;
-    }
-
+    // Embedded binary (compiled binary)
+    const bin = await getEmbeddedPagefind();
     await runPagefindCli(bin, [
         "--site", outputDir,
         "--output-path", `${outputDir}/pagefind`,
