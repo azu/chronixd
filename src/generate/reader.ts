@@ -100,7 +100,14 @@ export const readAllRecords = async (inputDir: string, since?: string | null): P
         }
     }
 
-    return allEntries;
+    // Deduplicate by url + unixTimeMs
+    const seen = new Set<string>();
+    return allEntries.filter((entry) => {
+        const key = `${entry.url ?? ""}:${entry.unixTimeMs}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
 };
 
 export const groupByDay = (records: TimelineEntry[]): DayGroup[] => {
