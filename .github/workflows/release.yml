@@ -34,7 +34,7 @@ jobs:
         run: bun install
       - name: Build
         run: bun build src/index.ts --compile --outfile chronixd-${{ matrix.target }}
-      - uses: actions/upload-artifact@ea165f8d65b6db9a6b7c67d0a148c5aca3170068 # v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: chronixd-${{ matrix.target }}
           path: chronixd-${{ matrix.target }}
