@@ -77,24 +77,13 @@ describe("generateDayPages", () => {
         expect(file1).toContain("2024-01-01");
     });
 
-    test("includes post form when microblogEndpoint and microblogToken are set", async () => {
-        const dayGroups = makeDayGroups();
-        await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: "https://api.example.com", microblogToken: "test-token", today: TEST_TODAY });
-
-        const file = await fs.readFile(path.join(TEST_DIR, "2024", "01", "01.html"), "utf-8");
-        expect(file).toContain("post-form");
-        expect(file).toContain("https://api.example.com");
-    });
-
-    test("does not include post form when microblogEndpoint is null", async () => {
-        await fs.rm(TEST_DIR, { recursive: true, force: true });
-        await fs.mkdir(TEST_DIR, { recursive: true });
-
+    test("includes post FAB link on all pages", async () => {
         const dayGroups = makeDayGroups();
         await generateDayPages(TEST_DIR, dayGroups, { language: "ja", microblogEndpoint: null, microblogToken: null, today: TEST_TODAY });
 
         const file = await fs.readFile(path.join(TEST_DIR, "2024", "01", "01.html"), "utf-8");
-        expect(file).not.toContain("post-form");
+        expect(file).toContain("post.html");
+        expect(file).toContain("fab-primary");
     });
 });
 

@@ -119,18 +119,31 @@ const cleanupPosted = async () => {
     }
 };
 
+const isTodayPage = () => {
+    const p = location.pathname;
+    if (p.endsWith("/today.html")) return true;
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return p.endsWith(`/${y}/${m}/${d}.html`);
+};
+
 const renderLocalPosts = async () => {
     const timeline = document.querySelector(".timeline");
-    if (!timeline) return;
+    if (!timeline || !isTodayPage()) return;
 
     const existing = document.querySelector(".local-posts");
     if (existing) existing.remove();
+
+    const buildTime = document.body.dataset.buildTime;
+    const buildTs = buildTime ? new Date(buildTime).getTime() : 0;
 
     const pending = await dbGetAll(PENDING_STORE);
     const posted = await dbGetAll(POSTED_STORE);
     const all = [
         ...pending.map((p) => ({ ...p, status: "pending" })),
-        ...posted.map((p) => ({ ...p, status: "posted" })),
+        ...posted.filter((p) => p.createdAt > buildTs).map((p) => ({ ...p, status: "posted" })),
     ];
     if (all.length === 0) return;
 
@@ -249,6 +262,12 @@ const initPostForm = () => {
             textEl.value = "";
             if (fileInput) fileInput.value = "";
             if (preview) preview.innerHTML = "";
+
+            // Close post page after successful post
+            if (location.pathname.endsWith("/post.html")) {
+                setTimeout(() => history.back(), 500);
+                return;
+            }
             await renderLocalPosts();
         } catch (err) {
             await dbAdd(PENDING_STORE, { text, images: [], createdAt: Date.now() });
@@ -288,6 +307,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     initPostForm();
     await renderLocalPosts();
     initLightbox();
+});
+
+// Re-render local posts when navigating back (bfcache restore)
+window.addEventListener("pageshow", async (e) => {
+    if (e.persisted) {
+        await cleanupPosted();
+        await renderLocalPosts();
+    }
 });
 
 // Online: process pending queue

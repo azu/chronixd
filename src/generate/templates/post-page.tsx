@@ -18,15 +18,19 @@ export const PostPage = ({ language, microblogEndpoint, microblogToken }: PostPa
                 <title>Post - chronixd</title>
                 <link rel="stylesheet" href="assets/style.css" />
                 <style dangerouslySetInnerHTML={{ __html: `
-                    main h1 { font-size: 1.1rem; margin: 0 0 1rem; }
+                    .post-page-header { display: flex; align-items: center; justify-content: space-between; margin: 0 0 1rem; }
+                    .post-page-header h1 { font-size: 1.1rem; margin: 0; padding: 0; border: none; }
+                    .post-page-close { font-family: var(--font-mono); font-size: 0.8rem; color: var(--c-text-muted); text-decoration: none; padding: 0.25rem 0.5rem; border: 1px solid var(--c-border); border-radius: var(--radius); }
+                    .post-page-close:hover { color: var(--c-text); border-color: var(--c-text-muted); }
                     #post-text { min-height: 120px; }
                     @media (min-width: 601px) { #post-text:focus { min-height: 200px; } }
                 ` }}></style>
             </head>
             <body>
-                <main dangerouslySetInnerHTML={{ __html: `<h1>New Post</h1>${postForm}` }}>
+                <main dangerouslySetInnerHTML={{ __html: `<div class="post-page-header"><h1>New Post</h1><a href="javascript:history.back()" class="post-page-close">Close</a></div>${postForm}` }}>
                 </main>
                 <script src="assets/post-client.js" type="module"></script>
+                <script dangerouslySetInnerHTML={{ __html: `document.addEventListener("keydown",function(e){if(e.key==="Escape")history.back()})` }}></script>
             </body>
         </html>
     );
