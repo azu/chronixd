@@ -156,7 +156,7 @@ const renderLocalPosts = async () => {
     for (const post of all) {
         const el = document.createElement("article");
         el.className = "timeline-entry timeline-entry--microblog";
-        const time = new Date(post.createdAt).toISOString().slice(11, 16);
+        const time = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(post.createdAt));
         const badge = post.status === "pending" ? "PENDING" : "POSTED";
         const imagesHtml = (post.images || [])
             .map((img) => {

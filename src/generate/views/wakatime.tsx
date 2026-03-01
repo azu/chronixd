@@ -1,6 +1,6 @@
 import type { TimelineEntry } from "../reader.js";
 import type { ServiceView, ViewResult } from "./types.js";
-import { formatTimeRange } from "./format.js";
+import { formatTimeRange, toISO } from "./format.js";
 import { getServiceIcon, inlineIcons } from "./icons.js";
 import { groupConsecutive } from "./group.js";
 
@@ -63,7 +63,7 @@ const WakaTimeGroupView = ({ entries }: { entries: TimelineEntry[] }): string =>
 
     return (
         <article class="timeline-entry timeline-entry--wakatime">
-            <time class="entry-time">{timeStr}</time>
+            <time class="entry-time" datetime={toISO(startMs)} data-end={toISO(endMs)}>{timeStr}</time>
             <span class="entry-badge" dangerouslySetInnerHTML={{ __html: `${getServiceIcon("wakatime")} WakaTime` }}></span>
             <span class="entry-body" dangerouslySetInnerHTML={{ __html: bodyHtml }}></span>
             {statsStr ? <div class="entry-meta">{statsStr}</div> : ""}

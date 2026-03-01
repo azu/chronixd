@@ -2,7 +2,7 @@ import type { TimelineEntry } from "../reader.js";
 import type { ServiceView, ViewResult } from "./types.js";
 import type { ImageMeta } from "../../common/types.js";
 import { safeUrl } from "./safe-url.js";
-import { formatTime } from "./format.js";
+import { formatTime, toISO } from "./format.js";
 import { getServiceIcon } from "./icons.js";
 
 const resolveImages = (entry: TimelineEntry): ImageMeta[] => {
@@ -30,7 +30,7 @@ const MicroblogEntryView = ({ entry }: { entry: TimelineEntry }): string => {
 
     return (
         <article class="timeline-entry timeline-entry--microblog">
-            <time class="entry-time">{time}</time>
+            <time class="entry-time" datetime={toISO(entry.unixTimeMs)}>{time}</time>
             <span class="entry-badge" dangerouslySetInnerHTML={{ __html: `${getServiceIcon("microblog")} Microblog` }}></span>
             <div class="entry-body">{text}</div>
             {images.length > 0

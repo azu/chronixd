@@ -10,3 +10,5 @@ export const formatTime = (unixTimeMs: number): string => {
 export const formatTimeRange = (startMs: number, endMs: number): string => {
     return `${formatTime(startMs)} - ${formatTime(endMs)}`;
 };
+
+export const toISO = (unixTimeMs: number): string => new Date(unixTimeMs).toISOString();

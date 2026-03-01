@@ -1,6 +1,6 @@
 import type { TimelineEntry } from "../reader.js";
 import type { ServiceView, ViewResult } from "./types.js";
-import { formatTimeRange } from "./format.js";
+import { formatTimeRange, toISO } from "./format.js";
 import { getServiceIcon } from "./icons.js";
 import { groupConsecutive } from "./group.js";
 
@@ -76,7 +76,7 @@ const StayView = ({ group }: { group: LocationGroup }): string => {
 
     return (
         <article class="timeline-entry timeline-entry--location">
-            <time class="entry-time">{timeStr}</time>
+            <time class="entry-time" datetime={toISO(first.unixTimeMs)} data-end={toISO(last.unixTimeMs)}>{timeStr}</time>
             <span class="entry-badge" dangerouslySetInnerHTML={{ __html: `${LocationIcon} Location` }}></span>
             <span class="entry-body">{name || `${group.entries.length} points`}</span>
             <div class="location-map" dangerouslySetInnerHTML={{ __html: `<div data-location-points='${mapData}'></div>` }}></div>
@@ -94,7 +94,7 @@ const MovingView = ({ group, prev, next }: { group: LocationGroup; prev?: Locati
 
     return (
         <article class="timeline-entry timeline-entry--location timeline-entry--moving">
-            <time class="entry-time">{timeStr}</time>
+            <time class="entry-time" datetime={toISO(first.unixTimeMs)} data-end={toISO(last.unixTimeMs)}>{timeStr}</time>
             <span class="entry-badge" dangerouslySetInnerHTML={{ __html: `${LocationIcon} Location` }}></span>
             <span class="entry-body">{label}</span>
         </article>

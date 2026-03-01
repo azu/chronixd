@@ -1,7 +1,7 @@
 import type { TimelineEntry } from "../reader.js";
 import type { ServiceView, ViewResult } from "./types.js";
 import { safeUrl } from "./safe-url.js";
-import { formatTime } from "./format.js";
+import { formatTime, toISO } from "./format.js";
 import { getServiceIcon } from "./icons.js";
 
 const DefaultEntryView = ({ entry }: { entry: TimelineEntry }): string => {
@@ -15,7 +15,7 @@ const DefaultEntryView = ({ entry }: { entry: TimelineEntry }): string => {
 
     return (
         <article class="timeline-entry">
-            <time class="entry-time">{time}</time>
+            <time class="entry-time" datetime={toISO(entry.unixTimeMs)}>{time}</time>
             {typeBadge}
             <span class="entry-service">{entry.service}/{entry.sourceName}</span>
             {link ? <div class="entry-link" dangerouslySetInnerHTML={{ __html: link }}></div> : ""}

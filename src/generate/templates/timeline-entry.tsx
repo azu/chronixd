@@ -1,5 +1,6 @@
 import type { TimelineEntry } from "../reader.js";
 import { getView } from "../views/index.js";
+import { formatTime } from "../views/format.js";
 
 export const renderTimelineEntries = (entries: TimelineEntry[]): string => {
     // Group entries by service
@@ -36,10 +37,7 @@ export const renderTimelineEntries = (entries: TimelineEntry[]): string => {
     let counter = 0;
     return rendered.map((r) => {
         const id = `e-${r.unixTimeMs}-${counter++}`;
-        const date = new Date(r.unixTimeMs);
-        const hh = String(date.getUTCHours()).padStart(2, "0");
-        const mm = String(date.getUTCMinutes()).padStart(2, "0");
-        const heading = `<h3 id="${id}" class="sr-only">${hh}:${mm}</h3>`;
+        const heading = `<h3 id="${id}" class="sr-only">${formatTime(r.unixTimeMs)}</h3>`;
         return r.html.replace("<article ", `<article aria-labelledby="${id}" `) + heading;
     }).join("\n");
 };
