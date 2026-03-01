@@ -59,12 +59,12 @@ const submitPost = async (endpoint, token, text, images) => {
 
 const isTodayPage = () => {
     const p = location.pathname;
-    if (p.endsWith("/today.html")) return true;
+    if (p.endsWith("/today.html") || p.endsWith("/today")) return true;
     const now = new Date();
     const y = now.getFullYear();
     const m = String(now.getMonth() + 1).padStart(2, "0");
     const d = String(now.getDate()).padStart(2, "0");
-    return p.endsWith(`/${y}/${m}/${d}.html`);
+    return p.endsWith(`/${y}/${m}/${d}.html`) || p.endsWith(`/${y}/${m}/${d}`);
 };
 
 const createMicroblogEntry = (post) => {
