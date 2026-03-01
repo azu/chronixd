@@ -42,7 +42,7 @@
     "@octokit/graphql": "^7.0.1",
     "@octokit/graphql-schema": "^14.25.0",
     "@octokit/rest": "^20.0.1",
-    "asocial-bookmark": "^2.0.1",
+    "asocial-bookmark": "2.0.2",
     "ical-js-parser": "^0.7.4",
     "node-ical": "^0.16.1",
     "parse-github-event": "^1.1.5",
