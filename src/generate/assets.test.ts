@@ -22,4 +22,21 @@ describe("copyAssets", () => {
             expect(content.length).toBeGreaterThan(0);
         }
     });
+
+    test("writes favicon files to output root", async () => {
+        await copyAssets(TEST_DIR);
+
+        const svgContent = await fs.readFile(path.join(TEST_DIR, "favicon.svg"), "utf-8");
+        expect(svgContent).toContain("<svg");
+        expect(svgContent).toContain("c0392b");
+
+        const pngFiles = ["apple-touch-icon.png", "favicon-32x32.png", "favicon-16x16.png"];
+        for (const file of pngFiles) {
+            const content = await fs.readFile(path.join(TEST_DIR, file));
+            expect(content.length).toBeGreaterThan(0);
+            // PNG magic bytes
+            expect(content[0]).toBe(0x89);
+            expect(content[1]).toBe(0x50);
+        }
+    });
 });

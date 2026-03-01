@@ -10,6 +10,7 @@
     "ci:dry-run": "CACHE_DIR=$(pwd)/.cache CHRONIXD_DRY_RUN=true bun run src/index.ts -- --output ./db",
     "generate": "bun run src/index.ts -- generate --input ./db --output ./dist",
     "generate:dev": "bun run scripts/dev-server.ts",
+    "generate:favicons": "bun run scripts/generate-favicon-data.ts",
     "dist": "bun build src/index.ts --compile --outfile chronixd",
     "lint": "eslint \"**/*.{ts,tsx}\"",
     "test": "bun test",
@@ -26,6 +27,7 @@
     "@typescript-eslint/parser": "^6.2.1",
     "eslint": "^8.46.0",
     "pagefind": "^1.3.0",
+    "sharp": "^0.34.5",
     "typescript": "^5.5.0"
   },
   "peerDependencies": {

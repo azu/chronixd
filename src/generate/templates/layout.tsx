@@ -18,6 +18,10 @@ export const Layout = ({ title, language, children, pathPrefix = "", microblogTo
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <title>{title}</title>
+                <link rel="icon" type="image/svg+xml" href={`${pathPrefix}favicon.svg`} />
+                <link rel="apple-touch-icon" sizes="180x180" href={`${pathPrefix}apple-touch-icon.png`} />
+                <link rel="icon" type="image/png" sizes="32x32" href={`${pathPrefix}favicon-32x32.png`} />
+                <link rel="icon" type="image/png" sizes="16x16" href={`${pathPrefix}favicon-16x16.png`} />
                 <link rel="stylesheet" href={`${pathPrefix}assets/style.css`} />
                 <link href={`${pathPrefix}pagefind/pagefind-ui.css`} rel="stylesheet" />
             </head>
