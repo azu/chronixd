@@ -1,8 +1,12 @@
+import { getDateContext } from "../date-context.js";
+
 export const formatTime = (unixTimeMs: number): string => {
+    const { timezone } = getDateContext();
     const formatter = new Intl.DateTimeFormat("en-GB", {
         hour: "2-digit",
         minute: "2-digit",
         hourCycle: "h23",
+        timeZone: timezone,
     });
     return formatter.format(new Date(unixTimeMs));
 };

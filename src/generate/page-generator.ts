@@ -1,6 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import type { DayGroup } from "./reader.js";
+import { getDateContext } from "./date-context.js";
 import { DayPage } from "./templates/day-page.js";
 import { IndexPage } from "./templates/index-page.js";
 import { PostPage } from "./templates/post-page.js";
@@ -13,11 +14,14 @@ type GenerateOptions = {
 };
 
 const getTodayDateKey = (): string => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, "0");
-    const d = String(now.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
+    const { timezone } = getDateContext();
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        timeZone: timezone,
+    });
+    return formatter.format(new Date());
 };
 
 export const filterFutureDays = (dayGroups: DayGroup[], todayOverride?: string): DayGroup[] => {

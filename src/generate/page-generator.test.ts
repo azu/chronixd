@@ -2,6 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { generateDayPages, generateIndexPage, filterFutureDays } from "./page-generator.js";
+import { initDateContext } from "./date-context.js";
 import type { DayGroup } from "./reader.js";
 
 const TEST_DIR = path.join(process.cwd(), ".test-output-generate-pages");
@@ -31,6 +32,7 @@ const makeDayGroups = (): DayGroup[] => [
 ];
 
 beforeAll(async () => {
+    initDateContext({ timezone: "UTC" });
     await fs.mkdir(TEST_DIR, { recursive: true });
 });
 

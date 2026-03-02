@@ -12,6 +12,7 @@ export type GenerateCliOptions = {
     output: string;
     language: string;
     since: string | null;
+    timezone: string | null;
 };
 
 export type CliOptions = PullCliOptions | GenerateCliOptions;
@@ -57,12 +58,15 @@ const parseGenerateArgs = (args: string[]): GenerateCliOptions => {
             },
             language: {
                 type: "string",
-                short: "L",
                 default: "ja",
             },
             since: {
                 type: "string",
                 short: "s",
+            },
+            timezone: {
+                type: "string",
+                default: "Asia/Tokyo",
             },
         },
     });
@@ -72,6 +76,7 @@ const parseGenerateArgs = (args: string[]): GenerateCliOptions => {
         output: values.output ?? "./dist",
         language: values.language ?? "ja",
         since: values.since ?? null,
+        timezone: values.timezone ?? "Asia/Tokyo",
     };
 };
 

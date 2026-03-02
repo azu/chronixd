@@ -2,10 +2,12 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { readAllRecords, groupByDay } from "./reader.js";
+import { initDateContext } from "./date-context.js";
 
 const TEST_DIR = path.join(process.cwd(), ".test-output-generate-reader");
 
 beforeAll(async () => {
+    initDateContext({ timezone: "UTC" });
     // Create test NDJSON structure: db/bluesky/myaccount/2024/01.ndjson
     const dir = path.join(TEST_DIR, "bluesky", "myaccount", "2024");
     await fs.mkdir(dir, { recursive: true });

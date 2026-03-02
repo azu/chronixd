@@ -2,6 +2,7 @@ import { readAllRecords, groupByDay } from "./reader.js";
 import { generateDayPages, generateIndexPage } from "./page-generator.js";
 import { copyAssets } from "./assets.js";
 import { runPagefind } from "./search.js";
+import { initDateContext } from "./date-context.js";
 import type { GenerateCliOptions } from "../cli.js";
 
 type MicroblogConfig = {
@@ -26,6 +27,7 @@ const detectMicroblogConfig = (): MicroblogConfig => {
 };
 
 export const runGenerate = async (options: GenerateCliOptions): Promise<void> => {
+    initDateContext({ timezone: options.timezone });
     const records = await readAllRecords(options.input, options.since);
     const dayGroups = groupByDay(records);
     const microblogConfig = detectMicroblogConfig();

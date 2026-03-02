@@ -1,6 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import { readNdjsonFile } from "../writer/ndjson.js";
+import { getDateContext } from "./date-context.js";
 import type { BaseRecord } from "../common/types.js";
 
 export type TimelineEntry = BaseRecord & {
@@ -104,14 +105,17 @@ export const readAllRecords = async (inputDir: string, since?: string | null): P
 };
 
 export const groupByDay = (records: TimelineEntry[]): DayGroup[] => {
+    const { timezone } = getDateContext();
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        timeZone: timezone,
+    });
     const dayMap = new Map<string, TimelineEntry[]>();
 
     for (const record of records) {
-        const date = new Date(record.unixTimeMs);
-        const year = date.getFullYear();
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
-        const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const dateKey = formatter.format(new Date(record.unixTimeMs));
 
         const existing = dayMap.get(dateKey);
         if (existing) {

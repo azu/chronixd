@@ -36,21 +36,21 @@ describe("parseCli", () => {
         process.argv = ["bun", "src/index.ts", "generate", "--input", "./mydb", "--output", "./dist"];
         const result = parseCli();
         expect(result.command).toBe("generate");
-        expect(result).toEqual({ command: "generate", input: "./mydb", output: "./dist", language: "ja", since: null });
+        expect(result).toEqual({ command: "generate", input: "./mydb", output: "./dist", language: "ja", since: null, timezone: "Asia/Tokyo" });
     });
 
     test("generate with language option", () => {
-        process.argv = ["bun", "src/index.ts", "generate", "-L", "en"];
+        process.argv = ["bun", "src/index.ts", "generate", "--language", "en"];
         const result = parseCli();
         expect(result.command).toBe("generate");
-        expect(result).toEqual({ command: "generate", input: "./db", output: "./dist", language: "en", since: null });
+        expect(result).toEqual({ command: "generate", input: "./db", output: "./dist", language: "en", since: null, timezone: "Asia/Tokyo" });
     });
 
     test("generate with since option", () => {
         process.argv = ["bun", "src/index.ts", "generate", "--since", "2026-02"];
         const result = parseCli();
         expect(result.command).toBe("generate");
-        expect(result).toEqual({ command: "generate", input: "./db", output: "./dist", language: "ja", since: "2026-02" });
+        expect(result).toEqual({ command: "generate", input: "./db", output: "./dist", language: "ja", since: "2026-02", timezone: "Asia/Tokyo" });
     });
 
     test("backward compat: no args at all", () => {

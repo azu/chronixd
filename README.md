@@ -168,12 +168,13 @@ Output path: `{output}/{service}/{name}/{year}/{month}.ndjson`
 Generate a static HTML timeline site from NDJSON data.
 
 ```bash
-./chronixd generate --input ./db --output ./dist --language ja
+./chronixd generate --input ./db --output ./dist --language ja --timezone Asia/Tokyo
 ```
 
 - `--input` (`-i`): Input directory containing NDJSON files (default: `./db`)
 - `--output` (`-o`): Output directory for HTML files (default: `./dist`)
-- `--language` (`-L`): Language code for HTML lang attribute (default: `ja`)
+- `--language`: [BCP 47 language tag](https://en.wikipedia.org/wiki/IETF_language_tag) for HTML lang attribute (default: `ja`)
+- `--timezone`: [IANA timezone](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) for date grouping and time display (default: `Asia/Tokyo`)
 
 The generated site includes:
 
@@ -258,7 +259,7 @@ jobs:
           key: chronixd-cache-${{ github.run_id }}
 
       - name: Generate static site
-        run: ./chronixd generate --input ./db --output ./dist
+        run: ./chronixd generate --input ./db --output ./dist --timezone Asia/Tokyo
         env:
           CHRONIXD_ENVS: ${{ secrets.CHRONIXD_ENVS }}
 
