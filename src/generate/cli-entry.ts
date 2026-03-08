@@ -8,6 +8,7 @@ const { values } = parseArgs({
         output: { type: "string", short: "o", default: "./dist" },
         language: { type: "string", default: "ja" },
         since: { type: "string", short: "s" },
+        timezone: { type: "string", short: "t" },
     },
 });
 
@@ -17,4 +18,5 @@ await runGenerate({
     output: values.output ?? "./dist",
     language: values.language ?? "ja",
     since: values.since ?? null,
+    timezone: values.timezone ?? "Asia/Tokyo",
 });

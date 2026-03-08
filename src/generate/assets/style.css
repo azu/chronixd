@@ -514,6 +514,18 @@ h2 {
 }
 
 
+/* Notion entry: title link is de-emphasised — looks like body text with a subtle underline */
+.timeline-entry--notion .entry-body a {
+    color: var(--c-text);
+    text-decoration: none;
+    border-bottom: 1px solid var(--c-border);
+}
+
+.timeline-entry--notion .entry-body a:hover {
+    color: var(--c-link-hover);
+    border-bottom-color: var(--c-link-hover);
+}
+
 /* --- Index page --- */
 
 .month-section {
