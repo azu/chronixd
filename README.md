@@ -102,6 +102,13 @@ Create an internal integration at [My Integrations](https://www.notion.so/my-int
 
 Create a Slack App at [api.slack.com/apps](https://api.slack.com/apps). Add `search:read` to User Token Scopes, then install to your workspace to get a `xoxp-` token.
 
+**Steps**
+
+1. Create app
+2. Add `search:read` to User Token Scopes
+3. Install App to workspace
+4. Copy User OAuth Token
+
 </details>
 
 <details>
