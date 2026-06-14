@@ -124,6 +124,11 @@ type CacheItem = {
     unixTimeMs: number;
 };
 
+export const isCachedNotionPageVersion = (items: CacheItem[], page: PageObjectResponse): boolean => {
+    const pageUnixTimeMs = new Date(page.last_edited_time).getTime();
+    return items.some((item) => item.pageId === page.id && item.unixTimeMs === pageUnixTimeMs);
+};
+
 export const fetchNotion = async (env: NotionEnv, lastRecord: BaseRecord | null, options?: { limit?: number }): Promise<NotionRecord[]> => {
     const maxPages = options?.limit ?? 1000;
     const client = new Client({ auth: env.notion_token });
@@ -134,7 +139,7 @@ export const fetchNotion = async (env: NotionEnv, lastRecord: BaseRecord | null,
         ? {
               timestamp: "last_edited_time" as const,
               last_edited_time: {
-                  after: new Date(lastRecord.unixTimeMs).toISOString(),
+                  on_or_after: new Date(lastRecord.unixTimeMs).toISOString(),
               },
           }
         : undefined;
@@ -170,7 +175,7 @@ export const fetchNotion = async (env: NotionEnv, lastRecord: BaseRecord | null,
     }
 
     const newPages = pages.filter((page) => {
-        return !oldItems.some((item) => item.pageId === page.id);
+        return !isCachedNotionPageVersion(oldItems, page);
     });
 
     logger.info("fetched item count: %d, new items: %d", pages.length, newPages.length);
@@ -242,7 +247,8 @@ export const fetchNotionSchema = async (env: NotionEnv): Promise<Record<string, 
 };
 
 export const notionService: ServiceDefinition = {
-    writeMode: "append",
+    writeMode: "upsert",
     isEnv: isNotionEnv,
+    getRecordKey: (record) => record.type === NotionType ? (record as NotionRecord).pageId : undefined,
     fetch: (env, lastRecord, options) => fetchNotion(env, lastRecord, { limit: options.limit }),
 };

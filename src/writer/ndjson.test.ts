@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
-import { appendRecords, replaceRecords } from "./ndjson.js";
+import { appendRecords, replaceRecords, upsertRecords } from "./ndjson.js";
 import { BaseRecord } from "../common/types.js";
 
 const TEST_DIR = path.join(import.meta.dir, "../../.test-output-ndjson");
@@ -320,5 +320,88 @@ describe("replaceRecords", () => {
         expect(lines.length).toBe(2);
         expect(lines[0].unixTimeMs).toBe(recordBeforeSince.unixTimeMs);
         expect(lines[1].unixTimeMs).toBe(recordInApril.unixTimeMs);
+    });
+});
+
+describe("upsertRecords", () => {
+    const options = { outputDir: TEST_DIR, name: "my-timeline", service: "notion" };
+    const getPageId = (record: BaseRecord) => (record as BaseRecord & { pageId?: string }).pageId;
+
+    beforeEach(async () => {
+        await fs.rm(TEST_DIR, { recursive: true, force: true });
+    });
+
+    afterEach(async () => {
+        await fs.rm(TEST_DIR, { recursive: true, force: true });
+    });
+
+    test("replaces an existing record with the same key across month files", async () => {
+        const janFile = path.join(TEST_DIR, "notion", "my-timeline", "2024", "01.ndjson");
+        await fs.mkdir(path.dirname(janFile), { recursive: true });
+        const existing = [
+            {
+                type: "Notion",
+                pageId: "page-1",
+                unixTimeMs: new Date("2024-01-10T10:00:00Z").getTime(),
+                title: "Old",
+                properties: { Status: "Todo" },
+            },
+            {
+                type: "Notion",
+                pageId: "page-2",
+                unixTimeMs: new Date("2024-01-12T10:00:00Z").getTime(),
+                title: "Keep",
+                properties: { Status: "Todo" },
+            },
+        ];
+        await fs.writeFile(janFile, existing.map(r => JSON.stringify(r)).join("\n") + "\n", "utf-8");
+
+        const updated = {
+            type: "Notion",
+            pageId: "page-1",
+            unixTimeMs: new Date("2024-02-01T10:00:00Z").getTime(),
+            title: "Updated",
+            properties: { Status: "Done" },
+        };
+        await upsertRecords(options, [updated], getPageId);
+
+        const janContent = await fs.readFile(janFile, "utf-8");
+        const janLines = janContent.trimEnd().split("\n").map(l => JSON.parse(l));
+        expect(janLines.length).toBe(1);
+        expect(janLines[0].pageId).toBe("page-2");
+
+        const febFile = path.join(TEST_DIR, "notion", "my-timeline", "2024", "02.ndjson");
+        const febContent = await fs.readFile(febFile, "utf-8");
+        const febLines = febContent.trimEnd().split("\n").map(l => JSON.parse(l));
+        expect(febLines.length).toBe(1);
+        expect(febLines[0].pageId).toBe("page-1");
+        expect(febLines[0].properties.Status).toBe("Done");
+    });
+
+    test("keeps only the latest incoming record for the same key", async () => {
+        const records = [
+            {
+                type: "Notion",
+                pageId: "page-1",
+                unixTimeMs: new Date("2024-03-01T10:00:00Z").getTime(),
+                title: "Older",
+                properties: { Status: "Doing" },
+            },
+            {
+                type: "Notion",
+                pageId: "page-1",
+                unixTimeMs: new Date("2024-03-02T10:00:00Z").getTime(),
+                title: "Newer",
+                properties: { Status: "Done" },
+            },
+        ];
+        await upsertRecords(options, records, getPageId);
+
+        const filePath = path.join(TEST_DIR, "notion", "my-timeline", "2024", "03.ndjson");
+        const content = await fs.readFile(filePath, "utf-8");
+        const lines = content.trimEnd().split("\n").map(l => JSON.parse(l));
+        expect(lines.length).toBe(1);
+        expect(lines[0].title).toBe("Newer");
+        expect(lines[0].properties.Status).toBe("Done");
     });
 });

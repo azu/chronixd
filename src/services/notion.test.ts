@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { isNotionEnv, extractPropertyValue, NotionType } from "./notion.js";
+import { isNotionEnv, extractPropertyValue, NotionType, isCachedNotionPageVersion } from "./notion.js";
 
 describe("isNotionEnv", () => {
     test("returns true for valid NotionEnv", () => {
@@ -220,5 +220,35 @@ describe("extractPropertyValue", () => {
 describe("NotionType", () => {
     test("is 'Notion'", () => {
         expect(NotionType).toBe("Notion");
+    });
+});
+
+describe("isCachedNotionPageVersion", () => {
+    test("returns true for the same page and last edited time", () => {
+        const page = {
+            id: "page-1",
+            last_edited_time: "2025-01-01T12:00:00.000Z",
+        };
+        const cacheItems = [
+            {
+                pageId: "page-1",
+                unixTimeMs: new Date("2025-01-01T12:00:00.000Z").getTime(),
+            },
+        ];
+        expect(isCachedNotionPageVersion(cacheItems, page as never)).toBe(true);
+    });
+
+    test("returns false for the same page with a newer last edited time", () => {
+        const page = {
+            id: "page-1",
+            last_edited_time: "2025-01-01T12:05:00.000Z",
+        };
+        const cacheItems = [
+            {
+                pageId: "page-1",
+                unixTimeMs: new Date("2025-01-01T12:00:00.000Z").getTime(),
+            },
+        ];
+        expect(isCachedNotionPageVersion(cacheItems, page as never)).toBe(false);
     });
 });
