@@ -232,7 +232,7 @@ on:
     - cron: "*/30 0-16,22-23 * * *" # Every 30 minutes (UTC 0-16, 22-23 = JST 9-25)
   workflow_dispatch:
 env:
-  CHRONIXD_VERSION: v5.3.1
+  CHRONIXD_VERSION: v5.4.0
 
 permissions:
   contents: write
