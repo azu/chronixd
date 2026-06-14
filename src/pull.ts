@@ -16,7 +16,7 @@ import { slackService } from "./services/slack.js";
 import { asocialBookmarkService } from "./services/asocial-bookmark.js";
 import { wakatimeService } from "./services/wakatime.js";
 import { microblogService } from "./services/microblog.js";
-import { appendRecords, replaceRecords } from "./writer/ndjson.js";
+import { appendRecords, replaceRecords, upsertRecords } from "./writer/ndjson.js";
 import { readLastRecord } from "./writer/lastItem.js";
 import { writeServiceSchemas } from "./writer/schema.js";
 import { SERVICE_DIR_MAP } from "./schema/definitions.js";
@@ -97,6 +97,10 @@ export const runPull = async (cliOptions: PullCliOptions): Promise<void> => {
                     const result = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
                     info("new records count: %d", result.records.length);
                     await replaceRecords(writeOptions, result.records, result.replaceFilter);
+                } else if (service.writeMode === "upsert") {
+                    const records = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
+                    info("new records count: %d", records.length);
+                    await upsertRecords(writeOptions, records, service.getRecordKey);
                 } else {
                     const records = await service.fetch(env, lastRecord, { limit: cliOptions.limit });
                     info("new records count: %d", records.length);

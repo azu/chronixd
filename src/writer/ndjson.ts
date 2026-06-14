@@ -10,6 +10,8 @@ export type WriteOptions = {
     dryRun?: boolean;
 };
 
+export type RecordKeyGetter = (record: BaseRecord) => string | undefined;
+
 const getYearMonth = (unixTimeMs: number): { year: string; month: string } => {
     const date = new Date(unixTimeMs);
     const year = String(date.getUTCFullYear());
@@ -36,6 +38,25 @@ const getYearMonthRange = (startMs: number, endMs: number): { year: string; mont
         current = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + 1, 1));
     }
     return result;
+};
+
+const getNdjsonFiles = async (dir: string): Promise<string[]> => {
+    try {
+        const entries = await fs.readdir(dir, { withFileTypes: true });
+        const files = await Promise.all(entries.map(async (entry) => {
+            const entryPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+                return getNdjsonFiles(entryPath);
+            }
+            if (entry.isFile() && entry.name.endsWith(".ndjson")) {
+                return [entryPath];
+            }
+            return [];
+        }));
+        return files.flat();
+    } catch {
+        return [];
+    }
 };
 
 export const readNdjsonFile = async (filePath: string): Promise<BaseRecord[]> => {
@@ -148,5 +169,82 @@ export const appendRecords = async (options: WriteOptions, records: BaseRecord[]
         await fs.mkdir(dir, { recursive: true });
         await fs.appendFile(filePath, lines, "utf-8");
         info(`appended ${groupRecords.length} records to ${filePath}`);
+    }
+};
+
+export const upsertRecords = async (
+    options: WriteOptions,
+    records: BaseRecord[],
+    getRecordKey: RecordKeyGetter
+): Promise<void> => {
+    const isDryRun = options.dryRun ?? Boolean(process.env.CHRONIXD_DRY_RUN);
+    if (records.length === 0) {
+        return;
+    }
+
+    const latestByKey = new Map<string, BaseRecord>();
+    for (const record of records.toSorted((a, b) => a.unixTimeMs - b.unixTimeMs)) {
+        const key = getRecordKey(record);
+        if (key) {
+            latestByKey.set(key, record);
+        }
+    }
+    const newRecords = [...latestByKey.values()].toSorted((a, b) => a.unixTimeMs - b.unixTimeMs);
+    const newKeys = new Set(latestByKey.keys());
+    if (newRecords.length === 0) {
+        return;
+    }
+
+    const baseDir = path.join(options.outputDir, options.service, options.name);
+    const existingFiles = await getNdjsonFiles(baseDir);
+    const newRecordsByPath = new Map<string, BaseRecord[]>();
+    for (const record of newRecords) {
+        const { year, month } = getYearMonth(record.unixTimeMs);
+        const filePath = path.join(baseDir, year, `${month}.ndjson`);
+        const group = newRecordsByPath.get(filePath);
+        if (group) {
+            group.push(record);
+        } else {
+            newRecordsByPath.set(filePath, [record]);
+        }
+    }
+
+    const targetFiles = new Set([...existingFiles, ...newRecordsByPath.keys()]);
+    for (const filePath of [...targetFiles].sort()) {
+        const existing = await readNdjsonFile(filePath);
+        const newRecordsForFile = newRecordsByPath.get(filePath) ?? [];
+        const kept = existing.filter((record) => {
+            const key = getRecordKey(record);
+            return !key || !newKeys.has(key);
+        });
+        const merged = [...kept, ...newRecordsForFile].toSorted((a, b) => a.unixTimeMs - b.unixTimeMs);
+        if (isDryRun) {
+            const dryNetNew = merged.length - existing.length;
+            if (dryNetNew === 0) {
+                info(`[DRY_RUN] no changes (${merged.length} records) in ${filePath}`);
+            } else if (dryNetNew > 0) {
+                info(`[DRY_RUN] would add ${dryNetNew} records (${existing.length} → ${merged.length} total) in ${filePath}`);
+            } else {
+                info(`[DRY_RUN] would remove ${-dryNetNew} records (${existing.length} → ${merged.length} total) in ${filePath}`);
+            }
+            debug("[DRY_RUN] records", newRecordsForFile);
+            continue;
+        }
+        if (merged.length === 0) {
+            await fs.rm(filePath, { force: true });
+            info(`removed ${existing.length} records (${existing.length} → 0 total) in ${filePath}`);
+            continue;
+        }
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        const lines = merged.map((r) => JSON.stringify(r)).join("\n") + "\n";
+        await fs.writeFile(filePath, lines, "utf-8");
+        const netNew = merged.length - existing.length;
+        if (netNew === 0) {
+            info(`no changes (${merged.length} records) in ${filePath}`);
+        } else if (netNew > 0) {
+            info(`added ${netNew} records (${existing.length} → ${merged.length} total) in ${filePath}`);
+        } else {
+            info(`removed ${-netNew} records (${existing.length} → ${merged.length} total) in ${filePath}`);
+        }
     }
 };

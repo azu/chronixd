@@ -162,6 +162,11 @@ export type ServiceDefinition = {
     isEnv: (env: unknown) => boolean;
     fetch: (env: any, lastRecord: BaseRecord | null, options: FetchOptions) => Promise<BaseRecord[]>;
 } | {
+    writeMode: "upsert";
+    isEnv: (env: unknown) => boolean;
+    getRecordKey: (record: BaseRecord) => string | undefined;
+    fetch: (env: any, lastRecord: BaseRecord | null, options: FetchOptions) => Promise<BaseRecord[]>;
+} | {
     writeMode: "replace";
     isEnv: (env: unknown) => boolean;
     fetch: (env: any, lastRecord: BaseRecord | null, options: FetchOptions) => Promise<{
