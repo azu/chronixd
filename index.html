@@ -165,6 +165,22 @@ const SERVICES = {
             { key: "wakatime_api_key", label: "API Key", placeholder: "waka_...", type: "password" },
         ]
     },
+    oura: {
+        label: "Oura Ring",
+        fields: [
+            { key: "oura_token_store", label: "Token Store (blank = local file)", options: ["1password"], optional: true },
+            { key: "oura_1password_vault", label: "1Password Vault ID or Name", placeholder: "chronixd", optional: true },
+            { key: "oura_1password_item", label: "1Password Item ID or Name", placeholder: "oura-oauth", optional: true },
+            { key: "oura_access_token", label: "OAuth Access Token (local file store)", placeholder: "OAuth access token", type: "password", optional: true },
+            { key: "oura_refresh_token", label: "OAuth Refresh Token (recommended)", placeholder: "OAuth refresh token", type: "password", optional: true },
+            { key: "oura_client_id", label: "OAuth Client ID (with refresh token)", placeholder: "Client ID", optional: true },
+            { key: "oura_client_secret", label: "OAuth Client Secret (with refresh token)", placeholder: "Client secret", type: "password", optional: true },
+            { key: "oura_timezone", label: "Oura Timezone (optional)", placeholder: "Asia/Tokyo", optional: true },
+            { key: "oura_data_types", label: "Data Types (optional JSON array)", placeholder: '["daily_activity","daily_readiness","daily_sleep","sleep"]', valueType: "json", optional: true },
+            { key: "oura_history_days", label: "Initial History Days (optional)", placeholder: "30", valueType: "number", optional: true },
+            { key: "oura_lookback_days", label: "Update Lookback Days (optional)", placeholder: "7", valueType: "number", optional: true },
+        ]
+    },
     microblog: {
         label: "Microblog",
         fields: [
@@ -185,15 +201,25 @@ const SERVICES = {
 
 let entryCount = 0;
 
+function escapeAttribute(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+}
+
 function createFieldHTML(field, idx) {
     const id = `${field.key}___${idx}`;
     if (field.options) {
-        const opts = field.options.map(o => `<option value="${o}">${o}</option>`).join("");
+        const empty = field.optional ? '<option value=""></option>' : "";
+        const opts = empty + field.options.map(o => `<option value="${o}">${o}</option>`).join("");
         return `<div class="field-group"><label for="${id}">${field.label}</label><select id="${id}">${opts}</select></div>`;
     }
-    const type = field.type || "text";
+    const type = field.type || (field.valueType === "number" ? "number" : "text");
     const req = field.optional ? "" : "required";
-    return `<div class="field-group"><label for="${id}">${field.label}</label><input id="${id}" type="${type}" placeholder="${field.placeholder || ""}" ${req}></div>`;
+    const placeholder = escapeAttribute(field.placeholder || "");
+    return `<div class="field-group"><label for="${id}">${field.label}</label><input id="${id}" type="${type}" placeholder="${placeholder}" ${req}></div>`;
 }
 
 function addEntry() {
@@ -248,7 +274,46 @@ function generate() {
             const el = document.getElementById(`${field.key}___${idx}`);
             const val = el.value.trim();
             if (!field.optional && !val) { alert(`${field.label} is required`); return; }
-            if (val) obj[field.key] = val;
+            if (val) {
+                if (field.valueType === "number") {
+                    const numberValue = Number(val);
+                    if (!Number.isInteger(numberValue) || numberValue <= 0) {
+                        alert(`${field.label} must be a positive integer`);
+                        return;
+                    }
+                    obj[field.key] = numberValue;
+                } else if (field.valueType === "json") {
+                    try {
+                        obj[field.key] = JSON.parse(val);
+                    } catch {
+                        alert(`${field.label} must be valid JSON`);
+                        return;
+                    }
+                } else {
+                    obj[field.key] = val;
+                }
+            }
+        }
+        if (serviceKey === "oura") {
+            const tokenStore = obj.oura_token_store || "file";
+            if (tokenStore === "1password") {
+                const requiredFields = ["oura_1password_vault", "oura_1password_item", "oura_client_id", "oura_client_secret"];
+                if (requiredFields.some(key => !obj[key])) {
+                    alert("Oura 1Password store requires vault, item, client ID, and client secret");
+                    return;
+                }
+            } else {
+                if (!obj.oura_access_token) {
+                    alert("Oura access token is required for the local file store");
+                    return;
+                }
+                const refreshFields = ["oura_refresh_token", "oura_client_id", "oura_client_secret"];
+                const configuredCount = refreshFields.filter(key => obj[key]).length;
+                if (configuredCount > 0 && configuredCount < refreshFields.length) {
+                    alert("Oura refresh token, client ID, and client secret must be configured together");
+                    return;
+                }
+            }
         }
         result.push(obj);
     }
@@ -324,7 +389,11 @@ function importEnvs() {
 
         for (const field of service.fields) {
             const el = document.getElementById(`${field.key}___${idx}`);
-            if (el && env[field.key] != null) el.value = env[field.key];
+            if (el && env[field.key] != null) {
+                el.value = field.valueType === "json"
+                    ? JSON.stringify(env[field.key])
+                    : String(env[field.key]);
+            }
         }
     }
 

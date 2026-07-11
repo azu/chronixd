@@ -15,11 +15,13 @@ import { notionService, fetchNotionSchema, isNotionEnv } from "./services/notion
 import { slackService } from "./services/slack.js";
 import { asocialBookmarkService } from "./services/asocial-bookmark.js";
 import { wakatimeService } from "./services/wakatime.js";
+import { ouraService } from "./services/oura.js";
 import { microblogService } from "./services/microblog.js";
 import { appendRecords, replaceRecords, upsertRecords } from "./writer/ndjson.js";
 import { readLastRecord } from "./writer/lastItem.js";
 import { writeServiceSchemas } from "./writer/schema.js";
 import { SERVICE_DIR_MAP } from "./schema/definitions.js";
+import { recordForDebugLog } from "./common/record-log.js";
 import type { PullCliOptions } from "./cli.js";
 
 const getServiceDir = (envType: string): string => {
@@ -38,6 +40,7 @@ const services: ServiceDefinition[] = [
     slackService,
     asocialBookmarkService,
     wakatimeService,
+    ouraService,
     microblogService,
 ];
 
@@ -87,7 +90,7 @@ export const runPull = async (cliOptions: PullCliOptions): Promise<void> => {
             } else {
                 info("last record not exists");
             }
-            debug("lastRecord object", lastRecord);
+            debug("lastRecord object", recordForDebugLog(lastRecord));
 
             const service = findService(env);
             const writeOptions = { outputDir: cliOptions.output, name: env.name, service: serviceDir };

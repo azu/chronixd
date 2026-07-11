@@ -2,6 +2,8 @@
 .playwright-mcp/
 /chronixd
 /db
+/cache
+/.oura-token-cache
 .test-output-*
 .tmp/
 # Based on https://raw.githubusercontent.com/github/gitignore/main/Node.gitignore
@@ -392,5 +394,3 @@ fabric.properties
 
 # Local History for Visual Studio Code
 .history/
-
-

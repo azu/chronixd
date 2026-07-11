@@ -24,7 +24,9 @@ op run --env-file .env -- bun run main
 
 - `CHRONIXD_ENVS`: JSON配列。各要素に`name`フィールドが必須
 - `CHRONIXD_DRY_RUN`: `true`でファイル書き込みをスキップ
-- `CACHE_DIR`: キャッシュディレクトリ（デフォルト: `./.cache`）
+- `CACHE_DIR`: キャッシュディレクトリ（デフォルト: `./cache`）
+- `OURA_TOKEN_CACHE_DIR`: Oura OAuthのfile token store（デフォルト: `./.oura-token-cache`）
+- `OP_SERVICE_ACCOUNT_TOKEN`: Ouraの1Password token storeで`op` CLIを認証するtoken
 
 ## CLI引数
 
@@ -46,7 +48,7 @@ chronixd --output ./path/to/db --limit 1000
 1. `src/services/*.ts` - サービス実装を追加/更新
 2. `src/common/types.ts` - Record型を追加
 3. `src/envs.ts` - `SupportedEnv`に型を追加、`typeOfEnv`に分岐を追加
-4. `src/index.ts` - `fetchService`に分岐を追加、`SERVICE_DIR_MAP`にマッピング追加
+4. `src/pull.ts` - `services`配列にサービスを追加（`SERVICE_DIR_MAP`はスキーマ定義から自動生成）
 5. `src/schema/definitions.ts` - スキーマ定義を追加
 6. `index.html` - ENV GeneratorのSERVICESにフィールド定義を追加
 7. `README.md` - Supported Servicesセクションにサービス説明を追加
@@ -73,11 +75,12 @@ npx npm@latest version major
 - raw fetchを使うサービスは `fetchWithRetry`（`src/common/fetchWithRetry.ts`）を使う
   - 429/503のRetry-Afterヘッダー、5xx、ネットワークエラーを自動リトライする
   - サービス内で独自のリトライを実装しない
-- ライブラリ利用サービス（Octokit, @notionhq/client等）は `processEnv`（`src/index.ts`）の共通リトライに任せる
+  - 例外: Oura OAuth refresh tokenはsingle-useのため、token POSTを再試行しない
+- ライブラリ利用サービス（Octokit, @notionhq/client等）は `processEnv`（`src/pull.ts`）の共通リトライに任せる
   - RetryAbleErrorとネットワークエラー（TypeError）をリトライする
 
 リトライ回数はデフォルト2回。`CHRONIXD_RETRY_COUNT`環境変数で変更可能。
 
 ## キャッシュ
 
-重複防止のため`.cache/`にキャッシュを保存。GitHub Actionsでは`actions/cache`の設定が必要。
+重複防止キャッシュは`CACHE_DIR`（デフォルト`./cache`）に保存。Ouraの回転OAuth tokenは機密情報のため、localでは`OURA_TOKEN_CACHE_DIR`、GitHub-hosted runnerでは1Password token storeへ分離し、GitHub Actions cacheには保存しない。
