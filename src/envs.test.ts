@@ -10,20 +10,13 @@ describe('envs', function () {
         expect(type).toBe("RSS");
     });
 
-    test("typeOfEnv(env) recognizes Oura", () => {
+    test("typeOfEnv(env) recognizes Oura with its 1Password and OAuth configuration", () => {
         const type = typeOfEnv({
             name: "ring",
-            oura_access_token: "oauth-access-token",
-        });
-        expect(type).toBe("Oura");
-    });
-
-    test("typeOfEnv(env) recognizes Oura with a 1Password token store", () => {
-        const type = typeOfEnv({
-            name: "ring",
-            oura_token_store: "1password",
             oura_1password_vault: "chronixd",
             oura_1password_item: "oura-oauth",
+            oura_client_id: "client-id",
+            oura_client_secret: "client-secret",
         });
         expect(type).toBe("Oura");
     });

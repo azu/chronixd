@@ -3,6 +3,7 @@
 /chronixd
 /db
 /cache
+# Legacy Oura file-store data may still contain OAuth credentials.
 /.oura-token-cache
 .test-output-*
 .tmp/

@@ -2,9 +2,8 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 
 export type OuraTokenState = {
-    version: 1;
     accessToken: string;
-    refreshToken?: string;
+    refreshToken: string;
     expiresAt?: number;
 };
 
@@ -190,7 +189,6 @@ export const readOuraOnePasswordTokenState = async (
     }
 
     return {
-        version: 1,
         accessToken: getRequiredField(item, ACCESS_TOKEN_FIELD),
         refreshToken: getRequiredField(item, REFRESH_TOKEN_FIELD),
         expiresAt,

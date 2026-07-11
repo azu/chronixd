@@ -25,8 +25,7 @@ op run --env-file .env -- bun run main
 - `CHRONIXD_ENVS`: JSON配列。各要素に`name`フィールドが必須
 - `CHRONIXD_DRY_RUN`: `true`でファイル書き込みをスキップ
 - `CACHE_DIR`: キャッシュディレクトリ（デフォルト: `./cache`）
-- `OURA_TOKEN_CACHE_DIR`: Oura OAuthのfile token store（デフォルト: `./.oura-token-cache`）
-- `OP_SERVICE_ACCOUNT_TOKEN`: Ouraの1Password token storeで`op` CLIを認証するtoken
+- `OP_SERVICE_ACCOUNT_TOKEN`: Oura OAuth tokenを取得・更新する1Password CLIの認証token
 
 ## CLI引数
 
@@ -83,4 +82,4 @@ npx npm@latest version major
 
 ## キャッシュ
 
-重複防止キャッシュは`CACHE_DIR`（デフォルト`./cache`）に保存。Ouraの回転OAuth tokenは機密情報のため、localでは`OURA_TOKEN_CACHE_DIR`、GitHub-hosted runnerでは1Password token storeへ分離し、GitHub Actions cacheには保存しない。
+重複防止キャッシュは`CACHE_DIR`（デフォルト`./cache`）に保存。Ouraの回転OAuth tokenはキャッシュではなく、実行環境にかかわらず1Passwordを正本として取得・更新し、GitHub Actions cacheには保存しない。

@@ -168,13 +168,10 @@ const SERVICES = {
     oura: {
         label: "Oura Ring",
         fields: [
-            { key: "oura_token_store", label: "Token Store (blank = local file)", options: ["1password"], optional: true },
-            { key: "oura_1password_vault", label: "1Password Vault ID or Name", placeholder: "chronixd", optional: true },
-            { key: "oura_1password_item", label: "1Password Item ID or Name", placeholder: "oura-oauth", optional: true },
-            { key: "oura_access_token", label: "OAuth Access Token (local file store)", placeholder: "OAuth access token", type: "password", optional: true },
-            { key: "oura_refresh_token", label: "OAuth Refresh Token (recommended)", placeholder: "OAuth refresh token", type: "password", optional: true },
-            { key: "oura_client_id", label: "OAuth Client ID (with refresh token)", placeholder: "Client ID", optional: true },
-            { key: "oura_client_secret", label: "OAuth Client Secret (with refresh token)", placeholder: "Client secret", type: "password", optional: true },
+            { key: "oura_1password_vault", label: "1Password Vault ID or Name", placeholder: "chronixd" },
+            { key: "oura_1password_item", label: "1Password Item ID or Name", placeholder: "oura-oauth" },
+            { key: "oura_client_id", label: "OAuth Client ID", placeholder: "Client ID" },
+            { key: "oura_client_secret", label: "OAuth Client Secret", placeholder: "Client secret", type: "password" },
             { key: "oura_timezone", label: "Oura Timezone (optional)", placeholder: "Asia/Tokyo", optional: true },
             { key: "oura_data_types", label: "Data Types (optional JSON array)", placeholder: '["daily_activity","daily_readiness","daily_sleep","sleep"]', valueType: "json", optional: true },
             { key: "oura_history_days", label: "Initial History Days (optional)", placeholder: "30", valueType: "number", optional: true },
@@ -291,27 +288,6 @@ function generate() {
                     }
                 } else {
                     obj[field.key] = val;
-                }
-            }
-        }
-        if (serviceKey === "oura") {
-            const tokenStore = obj.oura_token_store || "file";
-            if (tokenStore === "1password") {
-                const requiredFields = ["oura_1password_vault", "oura_1password_item", "oura_client_id", "oura_client_secret"];
-                if (requiredFields.some(key => !obj[key])) {
-                    alert("Oura 1Password store requires vault, item, client ID, and client secret");
-                    return;
-                }
-            } else {
-                if (!obj.oura_access_token) {
-                    alert("Oura access token is required for the local file store");
-                    return;
-                }
-                const refreshFields = ["oura_refresh_token", "oura_client_id", "oura_client_secret"];
-                const configuredCount = refreshFields.filter(key => obj[key]).length;
-                if (configuredCount > 0 && configuredCount < refreshFields.length) {
-                    alert("Oura refresh token, client ID, and client secret must be configured together");
-                    return;
                 }
             }
         }

@@ -1,7 +1,3 @@
-import * as fs from "fs/promises";
-import * as path from "path";
-import { createHash, randomUUID } from "crypto";
-import { hostname } from "os";
 import { BaseRecord, FetchOptions, OuraRecord, OuraDataType, ServiceDefinition } from "../common/types.js";
 import { RateLimitError } from "../common/RateLimitError.js";
 import { fetchWithRetry } from "../common/fetchWithRetry.js";
@@ -34,13 +30,10 @@ export const OURA_DATA_TYPES = [
 
 export type OuraEnv = {
     name?: string;
-    oura_access_token?: string;
-    oura_refresh_token?: string;
-    oura_client_id?: string;
-    oura_client_secret?: string;
-    oura_token_store?: "file" | "1password";
-    oura_1password_vault?: string;
-    oura_1password_item?: string;
+    oura_client_id: string;
+    oura_client_secret: string;
+    oura_1password_vault: string;
+    oura_1password_item: string;
     oura_data_types?: OuraDataType[];
     oura_history_days?: number;
     oura_lookback_days?: number;
@@ -62,7 +55,6 @@ type OuraTokenResponse = {
 
 type FetchOuraDependencies = {
     now?: Date;
-    cacheDir?: string;
     onePasswordCommandRunner?: OnePasswordCommandRunner;
 };
 
@@ -75,12 +67,10 @@ export const isOuraEnv = (env: unknown): env is OuraEnv => {
         return false;
     }
     const value = env as Record<string, unknown>;
-    return isNonEmptyString(value.oura_access_token)
-        || (
-            value.oura_token_store === "1password"
-            && isNonEmptyString(value.oura_1password_vault)
-            && isNonEmptyString(value.oura_1password_item)
-        );
+    return isNonEmptyString(value.oura_1password_vault)
+        && isNonEmptyString(value.oura_1password_item)
+        && isNonEmptyString(value.oura_client_id)
+        && isNonEmptyString(value.oura_client_secret);
 };
 
 const isOuraDataType = (value: unknown): value is OuraDataType => {
@@ -222,222 +212,6 @@ const getDateRange = (
     return { startDate: formatDateInTimeZone(historyStart, timeZone), endDate };
 };
 
-const getTokenCachePath = (env: OuraEnv, cacheDirOverride?: string): string => {
-    const cacheDir = cacheDirOverride
-        ?? process.env.OURA_TOKEN_CACHE_DIR
-        ?? path.join(process.cwd(), ".oura-token-cache");
-    const credentialSeed = env.oura_refresh_token ?? env.oura_access_token;
-    const fingerprint = createHash("sha256")
-        .update(`${env.oura_client_id ?? ""}\0${credentialSeed}`)
-        .digest("hex")
-        .slice(0, 12);
-    // Key OAuth state by credential, not output name. Multiple Oura entries can
-    // safely share one rotated token without racing the single-use refresh token.
-    return path.join(cacheDir, `oura-oauth-${fingerprint}.json`);
-};
-
-const isFileNotFoundError = (error: unknown): boolean => {
-    return (error as NodeJS.ErrnoException).code === "ENOENT";
-};
-
-const ensureTokenCacheDirectory = async (cachePath: string): Promise<void> => {
-    const directory = path.dirname(cachePath);
-    await fs.mkdir(directory, { recursive: true, mode: 0o700 });
-    await fs.chmod(directory, 0o700);
-};
-
-const syncDirectory = async (directory: string): Promise<void> => {
-    const directoryHandle = await fs.open(directory, "r");
-    try {
-        await directoryHandle.sync();
-    } finally {
-        await directoryHandle.close();
-    }
-};
-
-const readTokenState = async (cachePath: string): Promise<OuraTokenState | null> => {
-    let stats;
-    try {
-        stats = await fs.lstat(cachePath);
-    } catch (error) {
-        if (isFileNotFoundError(error)) return null;
-        throw new Error(`Failed to inspect Oura OAuth token cache: ${(error as Error).message}`);
-    }
-    if (!stats.isFile()) {
-        throw new Error(`Oura OAuth token cache is not a regular file: ${cachePath}`);
-    }
-    if ((stats.mode & 0o077) !== 0) {
-        throw new Error(`Oura OAuth token cache permissions must be 0600: ${cachePath}`);
-    }
-    if (typeof process.getuid === "function" && stats.uid !== process.getuid()) {
-        throw new Error(`Oura OAuth token cache is not owned by the current user: ${cachePath}`);
-    }
-
-    let text: string;
-    try {
-        text = await fs.readFile(cachePath, "utf-8");
-    } catch (error) {
-        throw new Error(`Failed to read Oura OAuth token cache: ${(error as Error).message}`);
-    }
-
-    try {
-        const value = JSON.parse(text) as Partial<OuraTokenState> | null;
-        if (value === null || typeof value !== "object") throw new Error("root value must be an object");
-        if (value.version !== 1) throw new Error("unsupported cache version");
-        if (!isNonEmptyString(value.accessToken)) throw new Error("accessToken is missing");
-        if (!isNonEmptyString(value.refreshToken)) throw new Error("refreshToken is missing");
-        if (value.expiresAt !== undefined && (!Number.isFinite(value.expiresAt) || value.expiresAt <= 0)) {
-            throw new Error("expiresAt is invalid");
-        }
-        return value as OuraTokenState;
-    } catch (error) {
-        throw new Error(`Oura OAuth token cache is invalid (${cachePath}): ${(error as Error).message}`);
-    }
-};
-
-const writeTokenState = async (cachePath: string, state: OuraTokenState): Promise<void> => {
-    await ensureTokenCacheDirectory(cachePath);
-    const temporaryPath = `${cachePath}.${randomUUID()}.tmp`;
-    let fileHandle: fs.FileHandle | undefined;
-    try {
-        fileHandle = await fs.open(temporaryPath, "wx", 0o600);
-        await fileHandle.chmod(0o600);
-        await fileHandle.writeFile(JSON.stringify(state) + "\n", "utf-8");
-        await fileHandle.sync();
-        await fileHandle.close();
-        fileHandle = undefined;
-        await fs.rename(temporaryPath, cachePath);
-        await fs.chmod(cachePath, 0o600);
-
-        await syncDirectory(path.dirname(cachePath));
-    } catch (error) {
-        await fileHandle?.close().catch(() => undefined);
-        await fs.rm(temporaryPath, { force: true });
-        throw new Error(`Failed to persist refreshed Oura OAuth tokens: ${(error as Error).message}`);
-    }
-};
-
-const sleep = (milliseconds: number): Promise<void> => {
-    return new Promise((resolve) => setTimeout(resolve, milliseconds));
-};
-
-type RefreshLockOwner = {
-    pid: number;
-    hostname: string;
-    createdAt: string;
-};
-
-const removeStaleRefreshLock = async (lockPath: string): Promise<boolean> => {
-    let stats;
-    let owner: Partial<RefreshLockOwner> | null = null;
-    try {
-        stats = await fs.lstat(lockPath);
-        owner = JSON.parse(await fs.readFile(lockPath, "utf-8")) as Partial<RefreshLockOwner>;
-    } catch (error) {
-        if (isFileNotFoundError(error)) return true;
-        try {
-            stats ??= await fs.lstat(lockPath);
-        } catch (statError) {
-            if (isFileNotFoundError(statError)) return true;
-            return false;
-        }
-    }
-
-    let isStale = false;
-    if (owner?.hostname === hostname() && Number.isInteger(owner.pid) && (owner.pid as number) > 0) {
-        try {
-            process.kill(owner.pid as number, 0);
-        } catch (error) {
-            isStale = (error as NodeJS.ErrnoException).code === "ESRCH";
-        }
-    } else if (owner === null && Date.now() - stats.mtimeMs > 10_000) {
-        // A valid owner writes and fsyncs metadata before any refresh request.
-        // An old empty/malformed lock therefore comes from a pre-request crash.
-        isStale = true;
-    }
-
-    if (!isStale) return false;
-    await fs.rm(lockPath, { force: true });
-    await syncDirectory(path.dirname(lockPath));
-    return true;
-};
-
-const acquireRefreshLock = async (cachePath: string): Promise<() => Promise<void>> => {
-    await ensureTokenCacheDirectory(cachePath);
-    const lockPath = `${cachePath}.lock`;
-    for (let attempt = 0; attempt < 100; attempt++) {
-        try {
-            const handle = await fs.open(lockPath, "wx", 0o600);
-            try {
-                const owner: RefreshLockOwner = {
-                    pid: process.pid,
-                    hostname: hostname(),
-                    createdAt: new Date().toISOString(),
-                };
-                await handle.chmod(0o600);
-                await handle.writeFile(JSON.stringify(owner) + "\n", "utf-8");
-                await handle.sync();
-                await syncDirectory(path.dirname(lockPath));
-            } catch (error) {
-                await handle.close();
-                await fs.rm(lockPath, { force: true });
-                throw error;
-            }
-            let released = false;
-            return async () => {
-                if (released) return;
-                released = true;
-                await handle.close();
-                await fs.rm(lockPath, { force: true });
-                await syncDirectory(path.dirname(lockPath));
-            };
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
-                throw new Error(`Failed to lock Oura OAuth token cache: ${(error as Error).message}`);
-            }
-            if (await removeStaleRefreshLock(lockPath)) continue;
-            await sleep(100);
-        }
-    }
-    throw new Error(`Timed out waiting for Oura OAuth token refresh lock: ${lockPath}`);
-};
-
-const assertNoUncertainRefresh = async (cachePath: string): Promise<void> => {
-    const markerPath = `${cachePath}.refresh-uncertain`;
-    try {
-        await fs.lstat(markerPath);
-    } catch (error) {
-        if (isFileNotFoundError(error)) return;
-        throw new Error(`Failed to inspect Oura OAuth refresh state: ${(error as Error).message}`);
-    }
-    throw new Error(
-        "A previous Oura OAuth refresh did not complete safely; reauthorize Oura and replace the configured tokens before retrying",
-    );
-};
-
-const createUncertainRefreshMarker = async (cachePath: string): Promise<string> => {
-    await ensureTokenCacheDirectory(cachePath);
-    const markerPath = `${cachePath}.refresh-uncertain`;
-    const handle = await fs.open(markerPath, "wx", 0o600);
-    try {
-        await handle.chmod(0o600);
-        await handle.writeFile(new Date().toISOString() + "\n", "utf-8");
-        await handle.sync();
-    } finally {
-        await handle.close();
-    }
-    await syncDirectory(path.dirname(cachePath));
-    return markerPath;
-};
-
-type OuraTokenStore = {
-    kind: "file" | "1password";
-    read: () => Promise<OuraTokenState | null>;
-    markRefreshUncertain: () => Promise<void>;
-    write: (state: OuraTokenState) => Promise<void>;
-    acquireRefreshLock: () => Promise<() => Promise<void>>;
-};
-
 const inProcessRefreshLockTails = new Map<string, Promise<void>>();
 
 const acquireInProcessRefreshLock = async (key: string): Promise<() => Promise<void>> => {
@@ -461,59 +235,13 @@ const acquireInProcessRefreshLock = async (key: string): Promise<() => Promise<v
     };
 };
 
-const getOnePasswordConfig = (env: OuraEnv): OuraOnePasswordConfig | null => {
-    const store = env.oura_token_store ?? "file";
-    if (store !== "file" && store !== "1password") {
-        throw new Error(`Unsupported Oura token store: ${String(store)}`);
-    }
-    if (store === "file") {
-        if (env.oura_1password_vault !== undefined || env.oura_1password_item !== undefined) {
-            throw new Error("Set oura_token_store to '1password' when configuring a 1Password vault or item");
-        }
-        return null;
-    }
+const getOnePasswordConfig = (env: OuraEnv): OuraOnePasswordConfig => {
     if (!isNonEmptyString(env.oura_1password_vault) || !isNonEmptyString(env.oura_1password_item)) {
-        throw new Error("oura_1password_vault and oura_1password_item are required for the 1Password token store");
+        throw new Error("oura_1password_vault and oura_1password_item are required");
     }
     return {
         vault: env.oura_1password_vault,
         item: env.oura_1password_item,
-    };
-};
-
-const createTokenStore = (
-    env: OuraEnv,
-    dependencies: FetchOuraDependencies,
-): OuraTokenStore => {
-    const onePasswordConfig = getOnePasswordConfig(env);
-    if (onePasswordConfig) {
-        const runner = dependencies.onePasswordCommandRunner;
-        const lockKey = `${onePasswordConfig.vault}\0${onePasswordConfig.item}`;
-        return {
-            kind: "1password",
-            read: () => readOuraOnePasswordTokenState(onePasswordConfig, runner),
-            markRefreshUncertain: () => markOuraOnePasswordRefreshUncertain(onePasswordConfig, runner),
-            write: (state) => writeOuraOnePasswordTokenState(onePasswordConfig, state, runner),
-            acquireRefreshLock: () => acquireInProcessRefreshLock(lockKey),
-        };
-    }
-
-    const cachePath = getTokenCachePath(env, dependencies.cacheDir);
-    const uncertainMarkerPath = `${cachePath}.refresh-uncertain`;
-    return {
-        kind: "file",
-        read: async () => {
-            await assertNoUncertainRefresh(cachePath);
-            return readTokenState(cachePath);
-        },
-        markRefreshUncertain: async () => {
-            await createUncertainRefreshMarker(cachePath);
-        },
-        write: async (state) => {
-            await writeTokenState(cachePath, state);
-            await fs.rm(uncertainMarkerPath);
-        },
-        acquireRefreshLock: () => acquireRefreshLock(cachePath),
     };
 };
 
@@ -545,18 +273,17 @@ const getRefreshCredentials = (env: OuraEnv, state: OuraTokenState): {
     refreshToken: string;
     clientId: string;
     clientSecret: string;
-} | null => {
-    const refreshToken = state.refreshToken ?? env.oura_refresh_token;
-    const values = [refreshToken, env.oura_client_id, env.oura_client_secret];
-    const configuredCount = values.filter(isNonEmptyString).length;
-    if (configuredCount === 0) return null;
-    if (configuredCount !== values.length) {
-        throw new Error("Oura refresh token state, oura_client_id, and oura_client_secret must be configured together");
+} => {
+    if (!isNonEmptyString(env.oura_client_id) || !isNonEmptyString(env.oura_client_secret)) {
+        throw new Error("oura_client_id and oura_client_secret are required");
+    }
+    if (!isNonEmptyString(state.refreshToken)) {
+        throw new Error("The Oura OAuth 1Password item has no refresh token");
     }
     return {
-        refreshToken: refreshToken as string,
-        clientId: env.oura_client_id as string,
-        clientSecret: env.oura_client_secret as string,
+        refreshToken: state.refreshToken,
+        clientId: env.oura_client_id,
+        clientSecret: env.oura_client_secret,
     };
 };
 
@@ -564,51 +291,28 @@ const createOuraRequester = async (
     env: OuraEnv,
     dependencies: FetchOuraDependencies,
 ): Promise<(url: URL) => Promise<Response>> => {
-    const tokenStore = createTokenStore(env, dependencies);
-    const storedState = await tokenStore.read();
-    if (!storedState && !isNonEmptyString(env.oura_access_token)) {
-        throw new Error("oura_access_token is required when the token store has no state");
-    }
-    let tokenState: OuraTokenState = storedState ?? {
-        version: 1,
-        accessToken: env.oura_access_token as string,
-        refreshToken: env.oura_refresh_token,
-    };
-    const refreshCredentials = getRefreshCredentials(env, tokenState);
-    if (
-        process.env.GITHUB_ACTIONS === "true"
-        && refreshCredentials
-        && tokenStore.kind === "file"
-        && dependencies.cacheDir === undefined
-        && !isNonEmptyString(process.env.OURA_TOKEN_CACHE_DIR)
-    ) {
-        throw new Error(
-            "Oura OAuth refresh on GitHub Actions requires an explicit durable OURA_TOKEN_CACHE_DIR outside Actions cache",
-        );
-    }
+    const onePasswordConfig = getOnePasswordConfig(env);
+    const runner = dependencies.onePasswordCommandRunner;
+    const lockKey = `${onePasswordConfig.vault}\0${onePasswordConfig.item}`;
+    let tokenState = await readOuraOnePasswordTokenState(onePasswordConfig, runner);
+    getRefreshCredentials(env, tokenState);
     let hasRefreshed = false;
 
     const refresh = async (): Promise<void> => {
-        if (!refreshCredentials) {
-            throw new Error("Oura access token expired and refresh credentials are not configured");
-        }
         if (Boolean(process.env.CHRONIXD_DRY_RUN)) {
             throw new Error("Oura OAuth token refresh is disabled in CHRONIXD_DRY_RUN because refresh tokens are single-use");
         }
 
-        const releaseLock = await tokenStore.acquireRefreshLock();
+        const releaseLock = await acquireInProcessRefreshLock(lockKey);
         try {
-            const latestState = await tokenStore.read();
-            if (latestState && latestState.accessToken !== tokenState.accessToken) {
+            const latestState = await readOuraOnePasswordTokenState(onePasswordConfig, runner);
+            if (latestState.accessToken !== tokenState.accessToken) {
                 tokenState = latestState;
                 hasRefreshed = true;
                 return;
             }
 
             const latestRefreshCredentials = getRefreshCredentials(env, tokenState);
-            if (!latestRefreshCredentials) {
-                throw new Error("Oura access token expired and refresh credentials are not configured");
-            }
             const refreshToken = latestRefreshCredentials.refreshToken;
             const secrets = [
                 tokenState.accessToken,
@@ -622,7 +326,7 @@ const createOuraRequester = async (
                 client_id: latestRefreshCredentials.clientId,
                 client_secret: latestRefreshCredentials.clientSecret,
             });
-            await tokenStore.markRefreshUncertain();
+            await markOuraOnePasswordRefreshUncertain(onePasswordConfig, runner);
             let response: Response;
             try {
                 response = await fetchWithRetry(OURA_TOKEN_URL, {
@@ -650,14 +354,13 @@ const createOuraRequester = async (
                 throw new Error("Failed to refresh Oura OAuth token: response did not include rotated access and refresh tokens; reauthorize before retrying");
             }
             tokenState = {
-                version: 1,
                 accessToken: tokens.access_token,
                 refreshToken: tokens.refresh_token,
                 expiresAt: typeof tokens.expires_in === "number"
                     ? Date.now() + tokens.expires_in * 1000
                     : undefined,
             };
-            await tokenStore.write(tokenState);
+            await writeOuraOnePasswordTokenState(onePasswordConfig, tokenState, runner);
             hasRefreshed = true;
             logger.info("Refreshed Oura OAuth token");
         } finally {

@@ -54,7 +54,6 @@ describe("Oura 1Password token store", () => {
         const state = await readOuraOnePasswordTokenState(config, fake.runner);
 
         expect(state).toEqual({
-            version: 1,
             accessToken: "old-access-token",
             refreshToken: "old-refresh-token",
             expiresAt: 1_783_742_400_000,
@@ -87,7 +86,6 @@ describe("Oura 1Password token store", () => {
         await markOuraOnePasswordRefreshUncertain(config, fake.runner);
         fake.calls.length = 0;
         await writeOuraOnePasswordTokenState(config, {
-            version: 1,
             accessToken: "new-access-token",
             refreshToken: "new-refresh-token",
             expiresAt: 1_783_746_000_000,
@@ -132,7 +130,6 @@ describe("Oura 1Password token store", () => {
         };
 
         await expect(writeOuraOnePasswordTokenState(config, {
-            version: 1,
             accessToken: "new-access-token",
             refreshToken: "new-refresh-token",
             expiresAt: 1_783_746_000_000,
@@ -157,7 +154,6 @@ describe("Oura 1Password token store", () => {
         };
 
         await writeOuraOnePasswordTokenState(config, {
-            version: 1,
             accessToken: "new-access-token",
             refreshToken: "new-refresh-token",
         }, runner);
@@ -174,6 +170,26 @@ describe("Oura 1Password token store", () => {
 
         await expect(readOuraOnePasswordTokenState(config, runner)).rejects.toThrow(
             "exactly one 'refresh_status' field",
+        );
+    });
+
+    test("fails closed when the refresh token is empty", async () => {
+        const item = createItem();
+        item.fields.find((field) => field.label === "refresh_token")!.value = "";
+        const runner: OnePasswordCommandRunner = async () => JSON.stringify(item);
+
+        await expect(readOuraOnePasswordTokenState(config, runner)).rejects.toThrow(
+            "field 'refresh_token' is empty",
+        );
+    });
+
+    test("rejects an invalid expires_at value", async () => {
+        const item = createItem();
+        item.fields.find((field) => field.label === "expires_at")!.value = "tomorrow";
+        const runner: OnePasswordCommandRunner = async () => JSON.stringify(item);
+
+        await expect(readOuraOnePasswordTokenState(config, runner)).rejects.toThrow(
+            "field 'expires_at' is invalid",
         );
     });
 
