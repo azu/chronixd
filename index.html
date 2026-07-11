@@ -165,6 +165,19 @@ const SERVICES = {
             { key: "wakatime_api_key", label: "API Key", placeholder: "waka_...", type: "password" },
         ]
     },
+    oura: {
+        label: "Oura Ring",
+        fields: [
+            { key: "oura_1password_vault", label: "1Password Vault ID or Name", placeholder: "chronixd" },
+            { key: "oura_1password_item", label: "1Password Item ID or Name", placeholder: "oura-oauth" },
+            { key: "oura_client_id", label: "OAuth Client ID", placeholder: "Client ID" },
+            { key: "oura_client_secret", label: "OAuth Client Secret", placeholder: "Client secret", type: "password" },
+            { key: "oura_timezone", label: "Oura Timezone (optional)", placeholder: "Asia/Tokyo", optional: true },
+            { key: "oura_data_types", label: "Data Types (optional JSON array)", placeholder: '["daily_activity","daily_readiness","daily_sleep","sleep"]', valueType: "json", optional: true },
+            { key: "oura_history_days", label: "Initial History Days (optional)", placeholder: "30", valueType: "number", optional: true },
+            { key: "oura_lookback_days", label: "Update Lookback Days (optional)", placeholder: "7", valueType: "number", optional: true },
+        ]
+    },
     microblog: {
         label: "Microblog",
         fields: [
@@ -185,15 +198,25 @@ const SERVICES = {
 
 let entryCount = 0;
 
+function escapeAttribute(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+}
+
 function createFieldHTML(field, idx) {
     const id = `${field.key}___${idx}`;
     if (field.options) {
-        const opts = field.options.map(o => `<option value="${o}">${o}</option>`).join("");
+        const empty = field.optional ? '<option value=""></option>' : "";
+        const opts = empty + field.options.map(o => `<option value="${o}">${o}</option>`).join("");
         return `<div class="field-group"><label for="${id}">${field.label}</label><select id="${id}">${opts}</select></div>`;
     }
-    const type = field.type || "text";
+    const type = field.type || (field.valueType === "number" ? "number" : "text");
     const req = field.optional ? "" : "required";
-    return `<div class="field-group"><label for="${id}">${field.label}</label><input id="${id}" type="${type}" placeholder="${field.placeholder || ""}" ${req}></div>`;
+    const placeholder = escapeAttribute(field.placeholder || "");
+    return `<div class="field-group"><label for="${id}">${field.label}</label><input id="${id}" type="${type}" placeholder="${placeholder}" ${req}></div>`;
 }
 
 function addEntry() {
@@ -248,7 +271,25 @@ function generate() {
             const el = document.getElementById(`${field.key}___${idx}`);
             const val = el.value.trim();
             if (!field.optional && !val) { alert(`${field.label} is required`); return; }
-            if (val) obj[field.key] = val;
+            if (val) {
+                if (field.valueType === "number") {
+                    const numberValue = Number(val);
+                    if (!Number.isInteger(numberValue) || numberValue <= 0) {
+                        alert(`${field.label} must be a positive integer`);
+                        return;
+                    }
+                    obj[field.key] = numberValue;
+                } else if (field.valueType === "json") {
+                    try {
+                        obj[field.key] = JSON.parse(val);
+                    } catch {
+                        alert(`${field.label} must be valid JSON`);
+                        return;
+                    }
+                } else {
+                    obj[field.key] = val;
+                }
+            }
         }
         result.push(obj);
     }
@@ -324,7 +365,11 @@ function importEnvs() {
 
         for (const field of service.fields) {
             const el = document.getElementById(`${field.key}___${idx}`);
-            if (el && env[field.key] != null) el.value = env[field.key];
+            if (el && env[field.key] != null) {
+                el.value = field.valueType === "json"
+                    ? JSON.stringify(env[field.key])
+                    : String(env[field.key]);
+            }
         }
     }
 

@@ -10,6 +10,7 @@ import { bookmarkView } from "./bookmark.js";
 import { wakatimeView } from "./wakatime.js";
 import { githubView } from "./github.js";
 import { notionView } from "./notion.js";
+import { ouraView } from "./oura.js";
 
 const viewMap: Record<string, ServiceView> = {
     bluesky: blueskyView,
@@ -23,6 +24,7 @@ const viewMap: Record<string, ServiceView> = {
     "github-events": githubView,
     "github-search": githubView,
     notion: notionView,
+    oura: ouraView,
 };
 
 export const getView = (serviceDir: string): ServiceView => {

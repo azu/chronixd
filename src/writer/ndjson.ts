@@ -1,7 +1,9 @@
 import * as fs from "fs/promises";
 import * as path from "path";
+import { randomUUID } from "crypto";
 import { BaseRecord } from "../common/types.js";
 import { debug, info } from "../common/logger.js";
+import { recordsForDebugLog } from "../common/record-log.js";
 
 export type WriteOptions = {
     outputDir: string;
@@ -54,21 +56,64 @@ const getNdjsonFiles = async (dir: string): Promise<string[]> => {
             return [];
         }));
         return files.flat();
-    } catch {
-        return [];
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+        throw new Error(`Failed to list NDJSON files in ${dir}: ${(error as Error).message}`);
     }
 };
 
 export const readNdjsonFile = async (filePath: string): Promise<BaseRecord[]> => {
+    let content: string;
     try {
-        const content = await fs.readFile(filePath, "utf-8");
-        return content
-            .trimEnd()
-            .split("\n")
-            .filter((line) => line.length > 0)
-            .map((line) => JSON.parse(line) as BaseRecord);
-    } catch {
-        return [];
+        content = await fs.readFile(filePath, "utf-8");
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+        throw new Error(`Failed to read NDJSON file ${filePath}: ${(error as Error).message}`);
+    }
+
+    const records: BaseRecord[] = [];
+    for (const [index, line] of content.trimEnd().split("\n").entries()) {
+        if (line.length === 0) continue;
+        try {
+            records.push(JSON.parse(line) as BaseRecord);
+        } catch (error) {
+            throw new Error(`Invalid NDJSON in ${filePath} at line ${index + 1}: ${(error as Error).message}`);
+        }
+    }
+    return records;
+};
+
+const writeNdjsonFileAtomically = async (filePath: string, records: BaseRecord[]): Promise<void> => {
+    const directory = path.dirname(filePath);
+    await fs.mkdir(directory, { recursive: true });
+    let mode = 0o600;
+    try {
+        mode = (await fs.stat(filePath)).mode & 0o777;
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+
+    const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
+    let fileHandle: fs.FileHandle | undefined;
+    try {
+        fileHandle = await fs.open(temporaryPath, "wx", mode);
+        const lines = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
+        await fileHandle.writeFile(lines, "utf-8");
+        await fileHandle.sync();
+        await fileHandle.close();
+        fileHandle = undefined;
+        await fs.rename(temporaryPath, filePath);
+
+        const directoryHandle = await fs.open(directory, "r");
+        try {
+            await directoryHandle.sync();
+        } finally {
+            await directoryHandle.close();
+        }
+    } catch (error) {
+        await fileHandle?.close().catch(() => undefined);
+        await fs.rm(temporaryPath, { force: true });
+        throw error;
     }
 };
 
@@ -118,15 +163,17 @@ export const replaceRecords = async (
             } else {
                 info(`[DRY_RUN] would remove ${-dryNetNew} records (${existing.length} → ${dryMergedLength} total) in ${filePath}`);
             }
-            debug("[DRY_RUN] records", newRecords);
+            debug("[DRY_RUN] records", recordsForDebugLog(newRecords));
             continue;
         }
         if (merged.length === 0) {
+            if (existing.length > 0) {
+                await fs.rm(filePath, { force: true });
+                info(`removed ${existing.length} records (${existing.length} → 0 total) in ${filePath}`);
+            }
             continue;
         }
-        await fs.mkdir(dir, { recursive: true });
-        const lines = merged.map((r) => JSON.stringify(r)).join("\n") + "\n";
-        await fs.writeFile(filePath, lines, "utf-8");
+        await writeNdjsonFileAtomically(filePath, merged);
         const netNew = merged.length - existing.length;
         if (netNew === 0) {
             info(`no changes (${merged.length} records) in ${filePath}`);
@@ -163,7 +210,7 @@ export const appendRecords = async (options: WriteOptions, records: BaseRecord[]
         const lines = groupRecords.map((r) => JSON.stringify(r)).join("\n") + "\n";
         if (isDryRun) {
             info(`[DRY_RUN] would append ${groupRecords.length} records to ${filePath}`);
-            debug("[DRY_RUN] records", groupRecords);
+            debug("[DRY_RUN] records", recordsForDebugLog(groupRecords));
             continue;
         }
         await fs.mkdir(dir, { recursive: true });
@@ -227,7 +274,7 @@ export const upsertRecords = async (
             } else {
                 info(`[DRY_RUN] would remove ${-dryNetNew} records (${existing.length} → ${merged.length} total) in ${filePath}`);
             }
-            debug("[DRY_RUN] records", newRecordsForFile);
+            debug("[DRY_RUN] records", recordsForDebugLog(newRecordsForFile));
             continue;
         }
         if (merged.length === 0) {
@@ -235,9 +282,7 @@ export const upsertRecords = async (
             info(`removed ${existing.length} records (${existing.length} → 0 total) in ${filePath}`);
             continue;
         }
-        await fs.mkdir(path.dirname(filePath), { recursive: true });
-        const lines = merged.map((r) => JSON.stringify(r)).join("\n") + "\n";
-        await fs.writeFile(filePath, lines, "utf-8");
+        await writeNdjsonFileAtomically(filePath, merged);
         const netNew = merged.length - existing.length;
         if (netNew === 0) {
             info(`no changes (${merged.length} records) in ${filePath}`);

@@ -110,6 +110,26 @@ export type WakaTimeRecord = BaseRecord & {
     humanDeletions?: number;
 };
 
+export type OuraDataType = "daily_activity" | "daily_readiness" | "daily_sleep" | "sleep";
+
+export type OuraRecord = BaseRecord & {
+    type: "Oura";
+    id: string;
+    dataType: OuraDataType;
+    day: string;
+    score?: number | null;
+    steps?: number | null;
+    activeCalories?: number | null;
+    temperatureDeviation?: number | null;
+    bedtimeStart?: string | null;
+    bedtimeEnd?: string | null;
+    durationSeconds?: number | null;
+    averageHeartRate?: number | null;
+    averageHrv?: number | null;
+    sleepType?: string | null;
+    rawData: string;
+};
+
 export type BookmarkRecord = BaseRecord & {
     type: "Bookmark";
     title: string;
@@ -146,6 +166,7 @@ export type AnyRecord =
     | SlackRecord
     | BookmarkRecord
     | WakaTimeRecord
+    | OuraRecord
     | MicroblogRecord;
 
 export type ReplaceFilter = {

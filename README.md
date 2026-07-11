@@ -123,6 +123,69 @@ Get your API key from [WakaTime Settings](https://wakatime.com/settings/api-key)
 </details>
 
 <details>
+<summary>Oura Ring</summary>
+
+[Oura API V2](https://cloud.ouraring.com/v2/docs) — Collect daily activity, readiness, sleep scores, and detailed sleep periods.
+
+**Credentials**
+
+Oura personal access tokens were retired in December 2025. Create an OAuth application in [My Applications](https://cloud.ouraring.com/oauth/applications) and authorize it with the `daily` scope. See the official [OAuth authentication guide](https://cloud.ouraring.com/docs/authentication) for the authorization-code and token exchange flow.
+
+chronixd always uses 1Password as the source of truth for the rotating OAuth token pair. Create a dedicated 1Password vault and an API Credential item with these exact fields:
+
+| Field | Initial value | Type |
+| --- | --- | --- |
+| `access_token` | Initial Oura access token | Concealed |
+| `refresh_token` | Initial Oura refresh token | Concealed |
+| `expires_at` | Empty | Text |
+| `refresh_status` | `ready` | Text |
+
+Configure chronixd with the item reference and OAuth application credentials. The rotating access and refresh tokens are loaded from 1Password, so they do not need to be copied into `CHRONIXD_ENVS`:
+
+```json
+{
+  "name": "my-ring",
+  "oura_1password_vault": "chronixd",
+  "oura_1password_item": "oura-oauth",
+  "oura_client_id": "...",
+  "oura_client_secret": "...",
+  "oura_timezone": "Asia/Tokyo"
+}
+```
+
+Install the `op` CLI. For unattended execution, give a 1Password Service Account only `read_items` and `write_items` access to that dedicated vault and pass its token as `OP_SERVICE_ACCOUNT_TOKEN`; the [1Password Service Account guide](https://www.1password.dev/service-accounts/get-started) documents these permissions, and the [CLI item reference](https://www.1password.dev/cli/reference/management-commands/item) documents item reads and edits. chronixd sends item JSON to `op item edit` over standard input, so rotated tokens are not placed in command arguments.
+
+Oura refresh tokens are single-use. Before contacting Oura's token endpoint, chronixd persists `refresh_status=uncertain`. A successful refresh updates the new access/refresh pair and `refresh_status=ready` in the same item edit. If the process stops between those operations, the next run fails closed and requires Oura reauthorization instead of retrying a possibly consumed refresh token. Token refresh is intentionally disabled in `CHRONIXD_DRY_RUN` so a single-use token cannot be consumed without saving its replacement.
+
+Store only `OP_SERVICE_ACCOUNT_TOKEN` in GitHub Actions Secrets. `CHRONIXD_ENVS` can be another 1Password field and loaded at runtime. Use one concurrency group for every workflow that writes the Oura item; `cancel-in-progress` must remain false so an active refresh is not interrupted:
+
+```yaml
+concurrency:
+  group: chronixd-oura-token
+  cancel-in-progress: false
+
+steps:
+  - name: Install 1Password CLI
+    uses: 1password/install-cli-action@a5215d3a7f75c1629216c465ea9ab3ab399c4b71 # v4.0.0
+
+  - name: Run chronixd
+    env:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+      CHRONIXD_ENVS: op://chronixd/chronixd-config/CHRONIXD_ENVS
+    run: op run -- ./chronixd --output ./db
+```
+
+1Password item edits do not provide chronixd with a distributed lock, and GitHub Actions concurrency is repository-scoped. Single-writer operation is therefore a correctness requirement: keep the dedicated Service Account token in one repository, and do not update the same Oura item concurrently from another repository or a local process. See GitHub's [workflow concurrency documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency). Do not persist Oura credentials with GitHub Actions cache; GitHub's [dependency-cache security guidance](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#cache-security) prohibits storing credentials in a cache.
+
+The generated Oura NDJSON contains sensitive health data, including the complete API documents. Do not commit it to a public repository; use private storage with access controls. If a refresh is interrupted or its 1Password item is lost or corrupted after rotation, reauthorize Oura instead of resetting the state and retrying the old refresh token.
+
+By default, chronixd fetches `daily_activity`, `daily_readiness`, `daily_sleep`, and `sleep`. The first run fetches 30 days, and later runs re-fetch the previous 7 days before upserting by Oura document ID. These defaults can be changed with `oura_data_types`, `oura_history_days`, and `oura_lookback_days`.
+
+If you add a data type to an existing source later, temporarily set `oura_lookback_days` to the number of days you want to backfill for that run. `--limit` is divided fairly across the configured data types; it must be at least the number of selected types.
+
+</details>
+
+<details>
 <summary>Microblog (chronixd-microblog)</summary>
 
 Collect posts from a self-hosted microblog powered by [chronixd-microblog](https://github.com/azu/chronixd-microblog).
@@ -191,7 +254,7 @@ The generated site includes:
 - `today.html` pointing to the current day's page
 - Post page for microblog integration (when `CHRONIXD_ENVS` contains microblog config)
 
-Each service has a dedicated view: Bluesky, GitHub (grouped by repo), Slack, Calendar, Linear, WakaTime (grouped by session), Location (stay/transit grouping), Bookmark, Microblog. Other services use a default view.
+Each service has a dedicated view: Bluesky, GitHub (grouped by repo), Slack, Calendar, Linear, WakaTime (grouped by session), Oura, Location (stay/transit grouping), Bookmark, Microblog. Other services use a default view.
 
 ### ENV Configuration
 
@@ -219,6 +282,7 @@ Output example:
 ```
 db/bluesky/your-name/2025/01.ndjson
 db/github-events/your-name/2025/01.ndjson
+db/oura/my-ring/2025/01.ndjson
 ```
 
 ### via GitHub Actions
@@ -288,6 +352,11 @@ SELECT * FROM read_ndjson('db/my-timeline/bluesky/**/*.ndjson');
 -- Read all GitHub events
 SELECT * FROM read_ndjson('db/my-timeline/github-events/**/*.ndjson');
 
+-- Read Oura daily scores and complete API payloads
+SELECT day, dataType, score, rawData AS apiDocument
+FROM read_ndjson('db/oura/**/*.ndjson')
+ORDER BY day DESC;
+
 -- Search across services with timestamp
 SELECT type, unixTimeMs, url
 FROM read_ndjson('db/my-timeline/**/*.ndjson')
@@ -309,7 +378,7 @@ Common fields:
 
 ## Cache
 
-Services that use cache-based deduplication (GitHub Search, Calendar, RSS, Linear, Location, Notion) store cache files in `CACHE_DIR` (default: `./.cache`).
+Services that use cache-based deduplication (GitHub Search, Calendar, RSS, Linear, Location, Notion) store cache files in `CACHE_DIR` (default: `./cache`). Oura OAuth tokens are not cache data; chronixd reads and updates them only through 1Password.
 GitHub Actions requires `actions/cache` configuration.
 
 ## Development

@@ -404,4 +404,26 @@ describe("upsertRecords", () => {
         expect(lines[0].title).toBe("Newer");
         expect(lines[0].properties.Status).toBe("Done");
     });
+
+    test("fails without deleting an existing file that contains invalid NDJSON", async () => {
+        const invalidFile = path.join(TEST_DIR, "notion", "my-timeline", "2025", "01.ndjson");
+        await fs.mkdir(path.dirname(invalidFile), { recursive: true });
+        const invalidContent = "{bad json}\n";
+        await fs.writeFile(invalidFile, invalidContent, "utf-8");
+        const newRecord = {
+            type: "Notion",
+            pageId: "page-new",
+            unixTimeMs: new Date("2026-01-02T10:00:00Z").getTime(),
+            title: "New",
+            properties: {},
+        };
+
+        await expect(upsertRecords(options, [newRecord], getPageId)).rejects.toThrow(
+            "Invalid NDJSON",
+        );
+        expect(await fs.readFile(invalidFile, "utf-8")).toBe(invalidContent);
+
+        const newFile = path.join(TEST_DIR, "notion", "my-timeline", "2026", "01.ndjson");
+        await expect(fs.access(newFile)).rejects.toThrow();
+    });
 });
