@@ -193,13 +193,14 @@ describe("Oura 1Password token store", () => {
         );
     });
 
-    test("rejects an item outside the API Credential category", async () => {
-        const item = { ...createItem(), category: "LOGIN" };
+    test("accepts a Secure Note when the required fields match", async () => {
+        const item = { ...createItem(), category: "SECURE_NOTE" };
         const runner: OnePasswordCommandRunner = async () => JSON.stringify(item);
 
-        await expect(readOuraOnePasswordTokenState(config, runner)).rejects.toThrow(
-            "must use the API Credential category",
-        );
+        await expect(readOuraOnePasswordTokenState(config, runner)).resolves.toMatchObject({
+            accessToken: "old-access-token",
+            refreshToken: "old-refresh-token",
+        });
     });
 
     test("rejects a token field that is not concealed", async () => {
