@@ -131,7 +131,7 @@ Get your API key from [WakaTime Settings](https://wakatime.com/settings/api-key)
 
 Oura personal access tokens were retired in December 2025. Create an OAuth application in [My Applications](https://cloud.ouraring.com/oauth/applications) and authorize it with the `daily` scope. See the official [OAuth authentication guide](https://cloud.ouraring.com/docs/authentication) for the authorization-code and token exchange flow.
 
-chronixd always uses 1Password as the source of truth for the rotating OAuth token pair. Create a dedicated 1Password vault and an API Credential item with these exact fields:
+chronixd always uses 1Password as the source of truth for the rotating OAuth token pair. Create a dedicated 1Password item, such as a Secure Note or API Credential, with these exact fields:
 
 | Field | Initial value | Type |
 | --- | --- | --- |
@@ -153,7 +153,7 @@ Configure chronixd with the item reference and OAuth application credentials. Th
 }
 ```
 
-Install the `op` CLI. For unattended execution, give a 1Password Service Account only `read_items` and `write_items` access to that dedicated vault and pass its token as `OP_SERVICE_ACCOUNT_TOKEN`; the [1Password Service Account guide](https://www.1password.dev/service-accounts/get-started) documents these permissions, and the [CLI item reference](https://www.1password.dev/cli/reference/management-commands/item) documents item reads and edits. chronixd sends item JSON to `op item edit` over standard input, so rotated tokens are not placed in command arguments.
+Install the `op` CLI. For unattended execution, give a 1Password Service Account only `read_items` and `write_items` access to that dedicated vault and pass its token as `OP_SERVICE_ACCOUNT_TOKEN`; the [1Password Service Account guide](https://www.1password.dev/service-accounts/get-started) documents these permissions, and the [CLI item reference](https://www.1password.dev/cli/reference/management-commands/item) documents item reads and edits. chronixd sends item JSON to `op item edit` over standard input, so rotated tokens are not placed in command arguments. Keep this as a dedicated token item and do not add a passkey; 1Password warns that JSON template edits do not preserve passkeys.
 
 Oura refresh tokens are single-use. Before contacting Oura's token endpoint, chronixd persists `refresh_status=uncertain`. A successful refresh updates the new access/refresh pair and `refresh_status=ready` in the same item edit. If the process stops between those operations, the next run fails closed and requires Oura reauthorization instead of retrying a possibly consumed refresh token. Token refresh is intentionally disabled in `CHRONIXD_DRY_RUN` so a single-use token cannot be consumed without saving its replacement.
 

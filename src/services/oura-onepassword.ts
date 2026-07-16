@@ -102,9 +102,6 @@ const parseItem = (text: string): OnePasswordItem => {
     if (!Array.isArray(item.fields)) {
         throw new Error("The Oura OAuth 1Password item has no fields");
     }
-    if (item.category !== "API_CREDENTIAL") {
-        throw new Error("The Oura OAuth 1Password item must use the API Credential category");
-    }
     for (const required of REQUIRED_FIELDS) {
         const matches = item.fields.filter((field) => field.label === required.label);
         if (matches.length !== 1) {
