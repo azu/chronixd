@@ -129,14 +129,14 @@ Get your API key from [WakaTime Settings](https://wakatime.com/settings/api-key)
 
 **Credentials**
 
-Oura personal access tokens were retired in December 2025. Create an OAuth application in [My Applications](https://cloud.ouraring.com/oauth/applications) and authorize it with the `daily` scope. See the official [OAuth authentication guide](https://cloud.ouraring.com/docs/authentication) for the authorization-code and token exchange flow.
+Oura personal access tokens were retired in December 2025. Create an OAuth application in [My Applications](https://cloud.ouraring.com/oauth/applications), configure its redirect URI, and use chronixd's authorization command to grant the `daily` scope. See the official [OAuth authentication guide](https://cloud.ouraring.com/docs/authentication) for the underlying authorization-code flow.
 
 chronixd always uses 1Password as the source of truth for the rotating OAuth token pair. Create a dedicated 1Password item, such as a Secure Note or API Credential, with these exact fields:
 
 | Field | Initial value | Type |
 | --- | --- | --- |
-| `access_token` | Initial Oura access token | Concealed |
-| `refresh_token` | Initial Oura refresh token | Concealed |
+| `access_token` | Empty; filled by `auth oura` | Concealed |
+| `refresh_token` | Empty; filled by `auth oura` | Concealed |
 | `expires_at` | Empty | Text |
 | `refresh_status` | `ready` | Text |
 
@@ -149,8 +149,16 @@ Configure chronixd with the item reference and OAuth application credentials. Th
   "oura_1password_item": "oura-oauth",
   "oura_client_id": "...",
   "oura_client_secret": "...",
+  "oura_redirect_uri": "https://example.com/oauth/callback",
   "oura_timezone": "Asia/Tokyo"
 }
+```
+
+With no Oura-writing workflow running, authorize or reauthorize the configured source from an interactive terminal. `auth oura` requires exactly one Oura configuration in `CHRONIXD_ENVS`. chronixd opens the Oura approval page and then asks for the complete redirected URL. If the redirect page returns an HTTP error, paste its address-bar URL as long as it contains the OAuth response parameters. The pasted value is hidden, and access and refresh tokens are written directly to the configured 1Password item without being printed:
+
+```bash
+CHRONIXD_ENVS="op://chronixd/chronixd-config/CHRONIXD_ENVS" \
+  op run -- ./chronixd auth oura
 ```
 
 Install the `op` CLI. For unattended execution, give a 1Password Service Account only `read_items` and `write_items` access to that dedicated vault and pass its token as `OP_SERVICE_ACCOUNT_TOKEN`; the [1Password Service Account guide](https://www.1password.dev/service-accounts/get-started) documents these permissions, and the [CLI item reference](https://www.1password.dev/cli/reference/management-commands/item) documents item reads and edits. chronixd sends item JSON to `op item edit` over standard input, so rotated tokens are not placed in command arguments. Keep this as a dedicated token item and do not add a passkey; 1Password warns that JSON template edits do not preserve passkeys.
@@ -216,7 +224,7 @@ Repository permissions:
 
 ### CLI
 
-chronixd has two subcommands: `pull` and `generate`.
+chronixd has three subcommands: `pull`, `generate`, and `auth`.
 
 #### pull (default)
 
@@ -255,6 +263,14 @@ The generated site includes:
 - Post page for microblog integration (when `CHRONIXD_ENVS` contains microblog config)
 
 Each service has a dedicated view: Bluesky, GitHub (grouped by repo), Slack, Calendar, Linear, WakaTime (grouped by session), Oura, Location (stay/transit grouping), Bookmark, Microblog. Other services use a default view.
+
+#### auth
+
+Authorize or reauthorize an OAuth-backed service. Oura is currently the only supported auth service.
+
+```bash
+CHRONIXD_ENVS='[...]' ./chronixd auth oura
+```
 
 ### ENV Configuration
 
