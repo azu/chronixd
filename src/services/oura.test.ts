@@ -119,6 +119,7 @@ const createOnePasswordStore = (options: TokenItemOptions = {}) => {
 
 const baseEnv: OuraEnv = {
     name: "ring",
+    oura_1password_account: "work",
     oura_1password_vault: "chronixd",
     oura_1password_item: "oura-oauth",
     oura_client_id: "client-id",
@@ -129,6 +130,7 @@ const baseEnv: OuraEnv = {
 describe("isOuraEnv", () => {
     test("accepts a complete 1Password OAuth configuration", () => {
         expect(isOuraEnv(baseEnv)).toBe(true);
+        expect(isOuraEnv({ ...baseEnv, oura_1password_account: undefined })).toBe(true);
     });
 
     test("rejects incomplete 1Password OAuth configurations", () => {
@@ -142,6 +144,7 @@ describe("isOuraEnv", () => {
         }
         expect(isOuraEnv({})).toBe(false);
         expect(isOuraEnv(null)).toBe(false);
+        expect(isOuraEnv({ ...baseEnv, oura_1password_account: "" })).toBe(false);
     });
 });
 
@@ -239,6 +242,7 @@ describe("fetchOura", () => {
         ]);
         expect(records[1].temperatureDeviation).toBe(-0.2);
         expect(store.calls.filter((call) => call.args[1] === "edit")).toHaveLength(0);
+        expect(store.calls[0].args.slice(-2)).toEqual(["--account", "work"]);
     });
 
     test("paginates and overlaps seven days from the last Oura day", async () => {

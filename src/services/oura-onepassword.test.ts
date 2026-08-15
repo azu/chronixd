@@ -48,7 +48,7 @@ const getFieldValue = (item: ReturnType<typeof createItem>, label: string): unkn
 };
 
 describe("Oura 1Password token store", () => {
-    test("reads the complete rotating token state", async () => {
+    test("reads the complete rotating token state without the 1Password CLI cache", async () => {
         const fake = createFakeRunner();
 
         const state = await readOuraOnePasswordTokenState(config, fake.runner);
@@ -65,7 +65,33 @@ describe("Oura 1Password token store", () => {
             "--vault",
             "chronixd",
             "--format=json",
+            "--cache=false",
         ]);
+    });
+
+    test("passes the configured 1Password account to reads and writes", async () => {
+        const fake = createFakeRunner();
+        const accountConfig = { ...config, account: "work" };
+
+        await readOuraOnePasswordTokenState(accountConfig, fake.runner);
+        await writeOuraOnePasswordTokenState(accountConfig, {
+            accessToken: "new-access-token",
+            refreshToken: "new-refresh-token",
+        }, fake.runner);
+
+        expect(fake.calls).not.toHaveLength(0);
+        for (const call of fake.calls) {
+            expect(call.args.slice(-2)).toEqual(["--account", "work"]);
+        }
+    });
+
+    test("rejects an empty configured 1Password account", async () => {
+        const fake = createFakeRunner();
+
+        await expect(readOuraOnePasswordTokenState({ ...config, account: "" }, fake.runner)).rejects.toThrow(
+            "account must be a non-empty string",
+        );
+        expect(fake.calls).toHaveLength(0);
     });
 
     test("persists the uncertain marker before a single-use refresh", async () => {

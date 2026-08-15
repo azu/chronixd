@@ -11,6 +11,7 @@ import type { OuraEnv } from "./oura.js";
 
 const baseEnv: OuraEnv = {
     name: "ring",
+    oura_1password_account: "work",
     oura_1password_vault: "chronixd",
     oura_1password_item: "oura-oauth",
     oura_client_id: "client-id",
@@ -30,8 +31,10 @@ const createTokenStore = (status = "uncertain:previous-attempt") => {
             { id: "refresh_status", label: "refresh_status", type: "STRING", value: status },
         ],
     };
+    const calls: string[][] = [];
     const edits: string[] = [];
     const runner: OnePasswordCommandRunner = async (args, standardInput) => {
+        calls.push(args);
         if (args[1] === "get") return JSON.stringify(item);
         if (args[1] === "edit" && standardInput) {
             edits.push(standardInput);
@@ -41,6 +44,7 @@ const createTokenStore = (status = "uncertain:previous-attempt") => {
         throw new Error(`unexpected command: ${args.join(" ")}`);
     };
     return {
+        calls,
         edits,
         getField: (label: string): unknown => item.fields.find((field) => field.label === label)?.value,
         runner,
@@ -163,6 +167,9 @@ describe("Oura authorization", () => {
         expect(store.getField("refresh_token")).toBe("new-refresh-token");
         expect(store.getField("expires_at")).toBe("3601000");
         expect(store.getField("refresh_status")).toBe("ready");
+        for (const args of store.calls) {
+            expect(args.slice(-2)).toEqual(["--account", "work"]);
+        }
         expect(logs.join("\n")).not.toContain("new-access-token");
         expect(logs.join("\n")).not.toContain("new-refresh-token");
     });
