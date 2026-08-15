@@ -65,7 +65,6 @@ describe("Oura 1Password token store", () => {
             "--vault",
             "chronixd",
             "--format=json",
-            "--reveal",
             "--cache=false",
         ]);
     });
@@ -102,7 +101,6 @@ describe("Oura 1Password token store", () => {
             "--vault",
             "chronixd",
             "--format=json",
-            "--reveal",
             "--template=/dev/stdin",
         ]);
         expect(edits[0].args.join(" ")).not.toContain("new-access-token");

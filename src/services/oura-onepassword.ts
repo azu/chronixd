@@ -156,7 +156,6 @@ const getItem = async (
         "--vault",
         config.vault,
         "--format=json",
-        "--reveal",
         "--cache=false",
     ]);
     return parseItem(text);
@@ -179,7 +178,6 @@ const editItem = async (
         "--vault",
         config.vault,
         "--format=json",
-        "--reveal",
         "--template=/dev/stdin",
     ], `${JSON.stringify(item)}\n`);
     return parseItem(text);
