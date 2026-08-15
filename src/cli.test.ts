@@ -53,6 +53,22 @@ describe("parseCli", () => {
         expect(result).toEqual({ command: "generate", input: "./db", output: "./dist", language: "ja", since: "2026-02", timezone: "Asia/Tokyo" });
     });
 
+    test("auth oura subcommand", () => {
+        process.argv = ["bun", "src/index.ts", "auth", "oura"];
+        const result = parseCli();
+        expect(result).toEqual({ command: "auth", service: "oura" });
+    });
+
+    test("auth oura rejects unexpected arguments", () => {
+        process.argv = ["bun", "src/index.ts", "auth", "oura", "unexpected"];
+        expect(() => parseCli()).toThrow("does not accept additional arguments");
+    });
+
+    test("auth rejects unsupported services", () => {
+        process.argv = ["bun", "src/index.ts", "auth", "github"];
+        expect(() => parseCli()).toThrow("supported service name 'oura'");
+    });
+
     test("backward compat: no args at all", () => {
         process.argv = ["bun", "src/index.ts"];
         const result = parseCli();
@@ -63,7 +79,7 @@ describe("parseCli", () => {
     test("backward compat: -- --output ./db (existing scripts)", () => {
         process.argv = ["bun", "src/index.ts", "--", "--output", "./db"];
         const result = parseCli();
-        expect(result.command).toBe("pull");
+        if (result.command !== "pull") throw new Error("expected pull command");
         expect(result.output).toBe("./db");
     });
 });

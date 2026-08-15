@@ -15,7 +15,12 @@ export type GenerateCliOptions = {
     timezone: string | null;
 };
 
-export type CliOptions = PullCliOptions | GenerateCliOptions;
+export type AuthCliOptions = {
+    command: "auth";
+    service: "oura";
+};
+
+export type CliOptions = PullCliOptions | GenerateCliOptions | AuthCliOptions;
 
 const parsePullArgs = (args: string[]): PullCliOptions => {
     const { values } = parseArgs({
@@ -80,12 +85,30 @@ const parseGenerateArgs = (args: string[]): GenerateCliOptions => {
     };
 };
 
+const parseAuthArgs = (args: string[]): AuthCliOptions => {
+    const service = args[0];
+    if (service !== "oura") {
+        throw new Error("auth requires the supported service name 'oura'");
+    }
+    if (args.length > 1) {
+        throw new Error("auth oura does not accept additional arguments");
+    }
+    return {
+        command: "auth",
+        service,
+    };
+};
+
 export const parseCli = (): CliOptions => {
     const args = process.argv.slice(2);
     const subcommand = args[0];
 
     if (subcommand === "generate") {
         return parseGenerateArgs(args.slice(1));
+    }
+
+    if (subcommand === "auth") {
+        return parseAuthArgs(args.slice(1));
     }
 
     // "pull" or no subcommand (backward compat)

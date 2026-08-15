@@ -14,7 +14,8 @@ import {
 const logger = createLogger("Oura");
 
 const OURA_API_BASE_URL = "https://api.ouraring.com/v2/usercollection";
-const OURA_TOKEN_URL = "https://api.ouraring.com/oauth/token";
+export const OURA_AUTHORIZE_URL = "https://cloud.ouraring.com/oauth/authorize";
+export const OURA_TOKEN_URL = "https://api.ouraring.com/oauth/token";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_HISTORY_DAYS = 30;
 const DEFAULT_LOOKBACK_DAYS = 7;
@@ -32,6 +33,7 @@ export type OuraEnv = {
     name?: string;
     oura_client_id: string;
     oura_client_secret: string;
+    oura_redirect_uri?: string;
     oura_1password_vault: string;
     oura_1password_item: string;
     oura_data_types?: OuraDataType[];
