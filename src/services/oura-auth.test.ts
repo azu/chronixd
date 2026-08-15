@@ -4,6 +4,7 @@ import {
     authorizeOura,
     createOuraAuthorizationUrl,
     parseOuraAuthorizationRedirect,
+    startOuraLoopbackCallbackServer,
     type OuraAuthorizationFetch,
 } from "./oura-auth.js";
 import type { OuraEnv } from "./oura.js";
@@ -14,7 +15,7 @@ const baseEnv: OuraEnv = {
     oura_1password_item: "oura-oauth",
     oura_client_id: "client-id",
     oura_client_secret: "client-secret",
-    oura_redirect_uri: "https://example.com/callback",
+    oura_redirect_uri: "http://localhost:64321/oauth/callback",
 };
 
 const createTokenStore = (status = "uncertain:previous-attempt") => {
@@ -53,16 +54,16 @@ describe("Oura authorization", () => {
         expect(url.origin + url.pathname).toBe("https://cloud.ouraring.com/oauth/authorize");
         expect(url.searchParams.get("response_type")).toBe("code");
         expect(url.searchParams.get("client_id")).toBe("client-id");
-        expect(url.searchParams.get("redirect_uri")).toBe("https://example.com/callback");
+        expect(url.searchParams.get("redirect_uri")).toBe("http://localhost:64321/oauth/callback");
         expect(url.searchParams.get("scope")).toBe("daily");
         expect(url.searchParams.get("state")).toBe("state-value");
     });
 
     test("parses a matching redirect", () => {
         const code = parseOuraAuthorizationRedirect(
-            "https://example.com/callback?code=authorization-code&scope=daily&state=state-value",
+            "http://localhost:64321/oauth/callback?code=authorization-code&scope=daily&state=state-value",
             "state-value",
-            "https://example.com/callback",
+            "http://localhost:64321/oauth/callback",
         );
 
         expect(code).toBe("authorization-code");
@@ -70,9 +71,9 @@ describe("Oura authorization", () => {
 
     test("rejects a state mismatch before accepting a code", () => {
         expect(() => parseOuraAuthorizationRedirect(
-            "https://example.com/callback?code=authorization-code&scope=daily&state=other",
+            "http://localhost:64321/oauth/callback?code=authorization-code&scope=daily&state=other",
             "state-value",
-            "https://example.com/callback",
+            "http://localhost:64321/oauth/callback",
         )).toThrow("state did not match");
     });
 
@@ -80,29 +81,30 @@ describe("Oura authorization", () => {
         expect(() => parseOuraAuthorizationRedirect(
             "https://attacker.example/callback?code=authorization-code&scope=daily&state=state-value",
             "state-value",
-            "https://example.com/callback",
+            "http://localhost:64321/oauth/callback",
         )).toThrow("does not match oura_redirect_uri");
     });
 
     test("reports denied access without exchanging a code", () => {
         expect(() => parseOuraAuthorizationRedirect(
-            "https://example.com/callback?error=access_denied&state=state-value",
+            "http://localhost:64321/oauth/callback?error=access_denied&state=state-value",
             "state-value",
-            "https://example.com/callback",
+            "http://localhost:64321/oauth/callback",
         )).toThrow("access_denied");
     });
 
     test("requires the daily scope", () => {
         expect(() => parseOuraAuthorizationRedirect(
-            "https://example.com/callback?code=authorization-code&scope=personal&state=state-value",
+            "http://localhost:64321/oauth/callback?code=authorization-code&scope=personal&state=state-value",
             "state-value",
-            "https://example.com/callback",
+            "http://localhost:64321/oauth/callback",
         )).toThrow("required 'daily' scope");
     });
 
     test("exchanges the code once and replaces an uncertain token state", async () => {
         const store = createTokenStore();
         const opened: string[] = [];
+        const callbackEvents: string[] = [];
         const logs: string[] = [];
         const fetchMock = mock(async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
             expect(String(input)).toBe("https://api.ouraring.com/oauth/token");
@@ -111,7 +113,7 @@ describe("Oura authorization", () => {
             const body = init?.body as URLSearchParams;
             expect(body.get("grant_type")).toBe("authorization_code");
             expect(body.get("code")).toBe("authorization-code");
-            expect(body.get("redirect_uri")).toBe("https://example.com/callback");
+            expect(body.get("redirect_uri")).toBe("http://localhost:64321/oauth/callback");
             expect(body.get("client_id")).toBe("client-id");
             expect(body.get("client_secret")).toBe("client-secret");
             return Response.json({
@@ -123,8 +125,20 @@ describe("Oura authorization", () => {
 
         await authorizeOura(baseEnv, {
             createState: () => "state-value",
-            openUrl: async (url) => { opened.push(url); },
-            promptForRedirect: async () => "https://example.com/callback?code=authorization-code&scope=daily&state=state-value",
+            openUrl: async (url) => {
+                callbackEvents.push("open-browser");
+                opened.push(url);
+            },
+            startCallbackServer: async (redirectUri, state) => {
+                callbackEvents.push("start-server");
+                expect(redirectUri).toBe("http://localhost:64321/oauth/callback");
+                expect(state).toBe("state-value");
+                return {
+                    redirectUri,
+                    code: Promise.resolve("authorization-code"),
+                    close: async () => { callbackEvents.push("close-server"); },
+                };
+            },
             fetch: fetchMock,
             onePasswordCommandRunner: store.runner,
             now: () => 1_000,
@@ -133,6 +147,7 @@ describe("Oura authorization", () => {
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(opened).toHaveLength(1);
+        expect(callbackEvents).toEqual(["start-server", "open-browser", "close-server"]);
         expect(store.edits).toHaveLength(1);
         expect(store.getField("access_token")).toBe("new-access-token");
         expect(store.getField("refresh_token")).toBe("new-refresh-token");
@@ -149,7 +164,11 @@ describe("Oura authorization", () => {
             await authorizeOura(baseEnv, {
                 createState: () => "state-value",
                 openUrl: async () => {},
-                promptForRedirect: async () => "https://example.com/callback?code=authorization-code&scope=daily&state=state-value",
+                startCallbackServer: async (redirectUri) => ({
+                    redirectUri,
+                    code: Promise.resolve("authorization-code"),
+                    close: async () => {},
+                }),
                 fetch: async () => new Response(JSON.stringify({
                     error_description: "authorization-code is invalid for client-secret",
                 }), { status: 400, statusText: "Bad Request" }),
@@ -176,7 +195,11 @@ describe("Oura authorization", () => {
         await expect(authorizeOura(baseEnv, {
             createState: () => "state-value",
             openUrl: async () => {},
-            promptForRedirect: async () => "https://example.com/callback?code=authorization-code&scope=daily&state=state-value",
+            startCallbackServer: async (redirectUri) => ({
+                redirectUri,
+                code: Promise.resolve("authorization-code"),
+                close: async () => {},
+            }),
             fetch: fetchMock as OuraAuthorizationFetch,
             onePasswordCommandRunner: store.runner,
             log: () => {},
@@ -195,5 +218,56 @@ describe("Oura authorization", () => {
         })).rejects.toThrow("requires oura_redirect_uri");
 
         expect(openUrl).not.toHaveBeenCalled();
+    });
+
+    test("requires a loopback redirect URI before opening a browser", async () => {
+        const openUrl = mock(async () => {});
+
+        await expect(authorizeOura({ ...baseEnv, oura_redirect_uri: "https://example.com/callback" }, {
+            openUrl,
+            log: () => {},
+        })).rejects.toThrow("must be an HTTP loopback URL");
+
+        expect(openUrl).not.toHaveBeenCalled();
+    });
+
+    test("rejects port zero in the configured redirect URI", async () => {
+        await expect(authorizeOura({ ...baseEnv, oura_redirect_uri: "http://localhost:0/oauth/callback" }, {
+            log: () => {},
+        })).rejects.toThrow("must be an HTTP loopback URL");
+    });
+
+    test("receives a valid authorization callback on a temporary loopback server", async () => {
+        const callback = await startOuraLoopbackCallbackServer(
+            "http://localhost:0/oauth/callback",
+            "state-value",
+            1_000,
+        );
+
+        try {
+            const response = await fetch(`${callback.redirectUri}?code=authorization-code&scope=daily&state=state-value`);
+            expect(response.status).toBe(200);
+            expect(await callback.code).toBe("authorization-code");
+        } finally {
+            await callback.close();
+        }
+    });
+
+    test("ignores a callback with a mismatched state and keeps waiting", async () => {
+        const callback = await startOuraLoopbackCallbackServer(
+            "http://localhost:0/oauth/callback",
+            "state-value",
+            1_000,
+        );
+
+        try {
+            const rejected = await fetch(`${callback.redirectUri}?code=attacker-code&scope=daily&state=other`);
+            expect(rejected.status).toBe(400);
+            const accepted = await fetch(`${callback.redirectUri}?code=authorization-code&scope=daily&state=state-value`);
+            expect(accepted.status).toBe(200);
+            expect(await callback.code).toBe("authorization-code");
+        } finally {
+            await callback.close();
+        }
     });
 });
