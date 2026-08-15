@@ -156,7 +156,10 @@ Configure chronixd with the item reference and OAuth application credentials. Th
 
 Register the exact redirect URI `http://localhost:64321/oauth/callback` in the Oura application and use the same value in `CHRONIXD_ENVS`. Port 64321 is in the dynamic/private range and is used here as a fixed, unlikely-to-conflict callback port. With no Oura-writing workflow running, authorize or reauthorize the configured source from an interactive terminal. `auth oura` requires exactly one Oura configuration in `CHRONIXD_ENVS`. chronixd temporarily listens only on the configured loopback address, opens the Oura approval page, receives the authorization code, and closes the local server. Access and refresh tokens are written directly to the configured 1Password item without being printed. The configured port must be available while authorization runs.
 
+When more than one 1Password account is configured, set `OP_ACCOUNT` to the account shorthand, sign-in address, account ID, or user ID. chronixd passes the environment to the `op` subprocesses that read and update the token item.
+
 ```bash
+OP_ACCOUNT="work" \
 CHRONIXD_ENVS="op://chronixd/chronixd-config/CHRONIXD_ENVS" \
   op run -- ./chronixd auth oura
 ```

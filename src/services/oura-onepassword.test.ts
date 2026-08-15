@@ -48,7 +48,7 @@ const getFieldValue = (item: ReturnType<typeof createItem>, label: string): unkn
 };
 
 describe("Oura 1Password token store", () => {
-    test("reads the complete rotating token state", async () => {
+    test("reads the complete rotating token state without the 1Password CLI cache", async () => {
         const fake = createFakeRunner();
 
         const state = await readOuraOnePasswordTokenState(config, fake.runner);
@@ -65,6 +65,7 @@ describe("Oura 1Password token store", () => {
             "--vault",
             "chronixd",
             "--format=json",
+            "--cache=false",
         ]);
     });
 

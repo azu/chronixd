@@ -144,6 +144,7 @@ const getItem = async (
         "--vault",
         config.vault,
         "--format=json",
+        "--cache=false",
     ]);
     return parseItem(text);
 };
