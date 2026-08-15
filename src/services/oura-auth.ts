@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { createLogger } from "../common/logger.js";
 import {
     type OnePasswordCommandRunner,
@@ -9,6 +11,8 @@ import {
 import { OURA_AUTHORIZE_URL, OURA_TOKEN_URL, type OuraEnv } from "./oura.js";
 
 const OURA_SCOPE = "daily";
+const OURA_CALLBACK_HOSTS = new Set(["localhost", "127.0.0.1"]);
+const OURA_CALLBACK_TIMEOUT_MS = 5 * 60 * 1000;
 const logger = createLogger("OuraAuth");
 
 type OuraAuthorizationConfig = OuraEnv & {
@@ -25,11 +29,24 @@ export type OuraAuthorizationDependencies = {
     fetch?: OuraAuthorizationFetch;
     onePasswordCommandRunner?: OnePasswordCommandRunner;
     openUrl?: (url: string) => Promise<void>;
-    promptForRedirect?: () => Promise<string>;
+    startCallbackServer?: StartOuraLoopbackCallbackServer;
+    callbackTimeoutMs?: number;
     createState?: () => string;
     now?: () => number;
     log?: (message: string) => void;
 };
+
+export type OuraLoopbackCallbackServer = {
+    redirectUri: string;
+    code: Promise<string>;
+    close: () => Promise<void>;
+};
+
+export type StartOuraLoopbackCallbackServer = (
+    redirectUri: string,
+    expectedState: string,
+    timeoutMs?: number,
+) => Promise<OuraLoopbackCallbackServer>;
 
 export type OuraAuthorizationFetch = (
     input: string | URL | Request,
@@ -50,8 +67,16 @@ const parseAuthorizationConfig = (env: OuraEnv): OuraAuthorizationConfig => {
     } catch {
         throw new Error("oura_redirect_uri must be a valid URL");
     }
-    if (!["http:", "https:"].includes(redirectUri.protocol) || redirectUri.username || redirectUri.password) {
-        throw new Error("oura_redirect_uri must be an HTTP or HTTPS URL without embedded credentials");
+    if (
+        redirectUri.protocol !== "http:"
+        || !OURA_CALLBACK_HOSTS.has(redirectUri.hostname)
+        || !redirectUri.port
+        || Number(redirectUri.port) === 0
+        || redirectUri.username
+        || redirectUri.password
+        || redirectUri.hash
+    ) {
+        throw new Error("oura_redirect_uri must be an HTTP loopback URL such as http://localhost:64321/oauth/callback");
     }
     return env as OuraAuthorizationConfig;
 };
@@ -93,10 +118,10 @@ export const parseOuraAuthorizationRedirect = (
     try {
         redirect = new URL(value.trim());
     } catch {
-        throw new Error("The pasted Oura redirect is not a valid URL");
+        throw new Error("The Oura redirect is not a valid URL");
     }
     if (!redirectTargetsMatch(new URL(expectedRedirectUri), redirect)) {
-        throw new Error("The pasted URL does not match oura_redirect_uri");
+        throw new Error("The Oura redirect does not match oura_redirect_uri");
     }
     if (redirect.searchParams.get("state") !== expectedState) {
         throw new Error("The Oura authorization state did not match; restart authorization");
@@ -157,53 +182,121 @@ export const openUrlInBrowser = (url: string): Promise<void> => {
     });
 };
 
-export const promptForOuraRedirect = async (): Promise<string> => {
-    const stdin = process.stdin;
-    if (!stdin.isTTY || typeof stdin.setRawMode !== "function") {
-        throw new Error("Oura authorization requires an interactive terminal");
+const writeCallbackResponse = (
+    response: import("node:http").ServerResponse,
+    status: number,
+    title: string,
+    message: string,
+): void => {
+    response.writeHead(status, {
+        "Cache-Control": "no-store",
+        "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+        "Content-Type": "text/html; charset=utf-8",
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff",
+    });
+    response.end(`<!doctype html><html lang="en"><meta charset="utf-8"><title>${title}</title><body><h1>${title}</h1><p>${message}</p></body></html>`);
+};
+
+const closeServer = (server: Server): Promise<void> => {
+    if (!server.listening) return Promise.resolve();
+    return new Promise((resolve) => server.close(() => resolve()));
+};
+
+export const startOuraLoopbackCallbackServer: StartOuraLoopbackCallbackServer = async (
+    redirectUri,
+    expectedState,
+    timeoutMs = OURA_CALLBACK_TIMEOUT_MS,
+) => {
+    const configuredRedirect = new URL(redirectUri);
+    if (configuredRedirect.protocol !== "http:" || !OURA_CALLBACK_HOSTS.has(configuredRedirect.hostname)) {
+        throw new Error("Oura callback server only listens on localhost or 127.0.0.1");
+    }
+    const port = Number(configuredRedirect.port);
+    if (!Number.isInteger(port) || port < 0 || port > 65_535) {
+        throw new Error("oura_redirect_uri must include a valid port");
+    }
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+        throw new Error("Oura callback timeout must be greater than zero");
     }
 
-    process.stdout.write("After approving access, paste the complete redirected URL and press Enter (input is hidden): ");
-    const wasRaw = stdin.isRaw;
-    const wasPaused = stdin.isPaused();
-    stdin.setEncoding("utf8");
-    stdin.setRawMode(true);
-    stdin.resume();
-
-    return new Promise((resolve, reject) => {
-        let input = "";
-        let settled = false;
-        const cleanup = () => {
-            stdin.removeListener("data", onData);
-            stdin.setRawMode(Boolean(wasRaw));
-            if (wasPaused) stdin.pause();
-            process.stdout.write("\n");
-        };
-        const finish = (callback: () => void) => {
-            if (settled) return;
-            settled = true;
-            cleanup();
-            callback();
-        };
-        const onData = (chunk: string | Buffer) => {
-            for (const character of String(chunk)) {
-                if (character === "\u0003") {
-                    finish(() => reject(new Error("Oura authorization was cancelled")));
-                    return;
-                }
-                if (character === "\r" || character === "\n") {
-                    finish(() => resolve(input.trim()));
-                    return;
-                }
-                if (character === "\u007f" || character === "\b") {
-                    input = input.slice(0, -1);
-                } else {
-                    input += character;
-                }
-            }
-        };
-        stdin.on("data", onData);
+    let callbackRedirect = configuredRedirect;
+    let resolveCode: (code: string) => void = () => {};
+    let rejectCode: (error: Error) => void = () => {};
+    let settled = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const code = new Promise<string>((resolve, reject) => {
+        resolveCode = resolve;
+        rejectCode = reject;
     });
+    const finish = (result: { code: string } | { error: Error }): void => {
+        if (settled) return;
+        settled = true;
+        if (timeout) clearTimeout(timeout);
+        if ("code" in result) {
+            resolveCode(result.code);
+        } else {
+            rejectCode(result.error);
+        }
+    };
+
+    const server = createServer((request, response) => {
+        if (request.method !== "GET" || !request.url) {
+            writeCallbackResponse(response, 404, "Not found", "This server only accepts the Oura OAuth callback.");
+            return;
+        }
+
+        const requestUrl = new URL(request.url, callbackRedirect.origin);
+        if (!redirectTargetsMatch(callbackRedirect, requestUrl)) {
+            writeCallbackResponse(response, 404, "Not found", "This is not the configured Oura OAuth callback path.");
+            return;
+        }
+        if (requestUrl.searchParams.get("state") !== expectedState) {
+            writeCallbackResponse(response, 400, "Authorization rejected", "The OAuth state did not match. Restart authorization from the terminal.");
+            return;
+        }
+
+        try {
+            const authorizationCode = parseOuraAuthorizationRedirect(
+                requestUrl.toString(),
+                expectedState,
+                callbackRedirect.toString(),
+            );
+            writeCallbackResponse(response, 200, "Oura authorization complete", "You can close this tab and return to chronixd.");
+            finish({ code: authorizationCode });
+        } catch (error) {
+            writeCallbackResponse(response, 400, "Oura authorization failed", "Return to the terminal for details.");
+            finish({ error: error as Error });
+        }
+    });
+
+    await new Promise<void>((resolve, reject) => {
+        const onError = (error: Error) => reject(error);
+        server.once("error", onError);
+        server.listen(port, configuredRedirect.hostname, () => {
+            server.off("error", onError);
+            resolve();
+        });
+    }).catch((error) => {
+        throw new Error(`Could not start the Oura callback server at ${redirectUri}: ${(error as Error).message}`);
+    });
+
+    const address = server.address() as AddressInfo;
+    callbackRedirect = new URL(configuredRedirect);
+    callbackRedirect.port = String(address.port);
+    server.on("error", (error) => finish({ error: new Error(`Oura callback server failed: ${error.message}`) }));
+    timeout = setTimeout(() => {
+        finish({ error: new Error("Timed out waiting for the Oura authorization callback") });
+    }, timeoutMs);
+
+    return {
+        redirectUri: callbackRedirect.toString(),
+        code,
+        close: async () => {
+            if (timeout) clearTimeout(timeout);
+            await closeServer(server);
+        },
+    };
 };
 
 export const authorizeOura = async (
@@ -217,15 +310,24 @@ export const authorizeOura = async (
     const state = (dependencies.createState ?? (() => randomBytes(32).toString("base64url")))();
     const authorizationUrl = createOuraAuthorizationUrl(config, state);
     const log = dependencies.log ?? ((message: string) => logger.info("%s", message));
-    log(`Open this Oura authorization URL:\n${authorizationUrl}`);
+    const callbackServer = await (dependencies.startCallbackServer ?? startOuraLoopbackCallbackServer)(
+        config.oura_redirect_uri,
+        state,
+        dependencies.callbackTimeoutMs,
+    );
+    let code: string;
     try {
-        await (dependencies.openUrl ?? openUrlInBrowser)(authorizationUrl);
-    } catch (error) {
-        log(`Could not open the browser automatically: ${(error as Error).message}`);
+        log(`Waiting for the Oura callback at ${callbackServer.redirectUri}`);
+        log(`Open this Oura authorization URL:\n${authorizationUrl}`);
+        try {
+            await (dependencies.openUrl ?? openUrlInBrowser)(authorizationUrl);
+        } catch (error) {
+            log(`Could not open the browser automatically: ${(error as Error).message}`);
+        }
+        code = await callbackServer.code;
+    } finally {
+        await callbackServer.close();
     }
-
-    const redirectValue = await (dependencies.promptForRedirect ?? promptForOuraRedirect)();
-    const code = parseOuraAuthorizationRedirect(redirectValue, state, config.oura_redirect_uri);
     const secrets = [code, config.oura_client_id, config.oura_client_secret];
     const body = new URLSearchParams({
         grant_type: "authorization_code",
