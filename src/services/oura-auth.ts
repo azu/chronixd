@@ -374,7 +374,6 @@ export const authorizeOura = async (
         expiresAt,
     };
     const onePasswordConfig = {
-        account: config.oura_1password_account,
         vault: config.oura_1password_vault,
         item: config.oura_1password_item,
     };

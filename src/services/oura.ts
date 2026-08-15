@@ -34,7 +34,6 @@ export type OuraEnv = {
     oura_client_id: string;
     oura_client_secret: string;
     oura_redirect_uri?: string;
-    oura_1password_account?: string;
     oura_1password_vault: string;
     oura_1password_item: string;
     oura_data_types?: OuraDataType[];
@@ -72,7 +71,6 @@ export const isOuraEnv = (env: unknown): env is OuraEnv => {
     const value = env as Record<string, unknown>;
     return isNonEmptyString(value.oura_1password_vault)
         && isNonEmptyString(value.oura_1password_item)
-        && (value.oura_1password_account === undefined || isNonEmptyString(value.oura_1password_account))
         && isNonEmptyString(value.oura_client_id)
         && isNonEmptyString(value.oura_client_secret);
 };
@@ -244,7 +242,6 @@ const getOnePasswordConfig = (env: OuraEnv): OuraOnePasswordConfig => {
         throw new Error("oura_1password_vault and oura_1password_item are required");
     }
     return {
-        account: env.oura_1password_account,
         vault: env.oura_1password_vault,
         item: env.oura_1password_item,
     };

@@ -8,7 +8,6 @@ export type OuraTokenState = {
 };
 
 export type OuraOnePasswordConfig = {
-    account?: string;
     vault: string;
     item: string;
 };
@@ -88,19 +87,9 @@ const validateConfig = (config: OuraOnePasswordConfig): void => {
     if (!isNonEmptyString(config.vault) || !isNonEmptyString(config.item)) {
         throw new Error("Oura 1Password token store requires a vault and item");
     }
-    if (config.account !== undefined && !isNonEmptyString(config.account)) {
-        throw new Error("Oura 1Password account must be a non-empty string when configured");
-    }
     if (config.vault.startsWith("-") || config.item.startsWith("-")) {
         throw new Error("Oura 1Password vault and item must not begin with '-'");
     }
-    if (config.account?.startsWith("-")) {
-        throw new Error("Oura 1Password account must not begin with '-'");
-    }
-};
-
-const withAccount = (config: OuraOnePasswordConfig, args: string[]): string[] => {
-    return config.account === undefined ? args : [...args, "--account", config.account];
 };
 
 const parseItem = (text: string): OnePasswordItem => {
@@ -148,7 +137,7 @@ const getItem = async (
     runner: OnePasswordCommandRunner,
 ): Promise<OnePasswordItem> => {
     validateConfig(config);
-    const text = await runner(withAccount(config, [
+    const text = await runner([
         "item",
         "get",
         config.item,
@@ -156,7 +145,7 @@ const getItem = async (
         config.vault,
         "--format=json",
         "--cache=false",
-    ]));
+    ]);
     return parseItem(text);
 };
 
@@ -167,13 +156,13 @@ const editItem = async (
 ): Promise<void> => {
     // The complete item is provided over stdin so rotated tokens never appear in
     // argv, shell history, or the process list.
-    await runner(withAccount(config, [
+    await runner([
         "item",
         "edit",
         config.item,
         "--vault",
         config.vault,
-    ]), JSON.stringify(item));
+    ], JSON.stringify(item));
 };
 
 export const readOuraOnePasswordTokenState = async (

@@ -69,31 +69,6 @@ describe("Oura 1Password token store", () => {
         ]);
     });
 
-    test("passes the configured 1Password account to reads and writes", async () => {
-        const fake = createFakeRunner();
-        const accountConfig = { ...config, account: "work" };
-
-        await readOuraOnePasswordTokenState(accountConfig, fake.runner);
-        await writeOuraOnePasswordTokenState(accountConfig, {
-            accessToken: "new-access-token",
-            refreshToken: "new-refresh-token",
-        }, fake.runner);
-
-        expect(fake.calls).not.toHaveLength(0);
-        for (const call of fake.calls) {
-            expect(call.args.slice(-2)).toEqual(["--account", "work"]);
-        }
-    });
-
-    test("rejects an empty configured 1Password account", async () => {
-        const fake = createFakeRunner();
-
-        await expect(readOuraOnePasswordTokenState({ ...config, account: "" }, fake.runner)).rejects.toThrow(
-            "account must be a non-empty string",
-        );
-        expect(fake.calls).toHaveLength(0);
-    });
-
     test("persists the uncertain marker before a single-use refresh", async () => {
         const fake = createFakeRunner();
 
