@@ -58,15 +58,27 @@ const sanitizeCliError = (value: string): string => {
 
 export const runOnePasswordCommand: OnePasswordCommandRunner = (args, standardInput) => {
     return new Promise((resolve, reject) => {
+        const inheritStderr = Boolean(process.stderr.isTTY)
+            && !isNonEmptyString(process.env.OP_SERVICE_ACCOUNT_TOKEN);
         const child = spawn("op", args, {
             env: process.env,
-            stdio: ["pipe", "pipe", "pipe"],
+            // Keep stderr attached to the interactive terminal so 1Password's
+            // desktop-app authentication can be presented to the user. CI and
+            // service-account runs still capture stderr for sanitized errors.
+            stdio: ["pipe", "pipe", inheritStderr ? "inherit" : "pipe"],
         });
+        const childStdin = child.stdin;
+        const childStdout = child.stdout;
+        if (!childStdin || !childStdout) {
+            child.kill();
+            reject(new Error("Failed to open pipes for 1Password CLI"));
+            return;
+        }
         const stdout: Buffer[] = [];
         const stderr: Buffer[] = [];
 
-        child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
-        child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
+        childStdout.on("data", (chunk: Buffer) => stdout.push(chunk));
+        child.stderr?.on("data", (chunk: Buffer) => stderr.push(chunk));
         child.once("error", (error) => {
             reject(new Error(`Failed to start 1Password CLI: ${error.message}`));
         });
@@ -79,7 +91,7 @@ export const runOnePasswordCommand: OnePasswordCommandRunner = (args, standardIn
             reject(new Error(`1Password CLI failed with exit code ${String(code)}${detail ? `: ${detail}` : ""}`));
         });
 
-        child.stdin.end(standardInput);
+        childStdin.end(standardInput);
     });
 };
 
@@ -155,7 +167,10 @@ const editItem = async (
     runner: OnePasswordCommandRunner,
 ): Promise<OnePasswordItem> => {
     // The complete item is provided over stdin so rotated tokens never appear in
-    // argv, shell history, or the process list.
+    // argv, shell history, or the process list. Bun connects child stdin with a
+    // socket on macOS, which `op item edit` does not auto-detect as piped input.
+    // Pointing the documented --template flag at /dev/stdin makes the input
+    // source explicit without writing the tokens to a temporary file.
     const text = await runner([
         "item",
         "edit",
@@ -163,7 +178,8 @@ const editItem = async (
         "--vault",
         config.vault,
         "--format=json",
-    ], JSON.stringify(item));
+        "--template=/dev/stdin",
+    ], `${JSON.stringify(item)}\n`);
     return parseItem(text);
 };
 
