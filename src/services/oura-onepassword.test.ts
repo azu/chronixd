@@ -65,6 +65,7 @@ describe("Oura 1Password token store", () => {
             "--vault",
             "chronixd",
             "--format=json",
+            "--reveal",
             "--cache=false",
         ]);
     });
@@ -101,10 +102,13 @@ describe("Oura 1Password token store", () => {
             "--vault",
             "chronixd",
             "--format=json",
+            "--reveal",
+            "--template=/dev/stdin",
         ]);
         expect(edits[0].args.join(" ")).not.toContain("new-access-token");
         expect(edits[0].args.join(" ")).not.toContain("new-refresh-token");
         expect(edits[0].standardInput).toContain("new-access-token");
+        expect(edits[0].standardInput).toEndWith("\n");
         expect(getFieldValue(fake.getItem(), "access_token")).toBe("new-access-token");
         expect(getFieldValue(fake.getItem(), "refresh_token")).toBe("new-refresh-token");
         expect(getFieldValue(fake.getItem(), "expires_at")).toBe("1783746000000");
