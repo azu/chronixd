@@ -69,6 +69,16 @@ describe("Oura authorization", () => {
         expect(code).toBe("authorization-code");
     });
 
+    test("accepts an Oura redirect that omits the scope parameter", () => {
+        const code = parseOuraAuthorizationRedirect(
+            "http://localhost:64321/oauth/callback?iss=https%3A%2F%2Fmoi.ouraring.com%2Foauth%2Fv2%2Fext%2Foauth-anonymous&code=authorization-code&state=state-value",
+            "state-value",
+            "http://localhost:64321/oauth/callback",
+        );
+
+        expect(code).toBe("authorization-code");
+    });
+
     test("rejects a state mismatch before accepting a code", () => {
         expect(() => parseOuraAuthorizationRedirect(
             "http://localhost:64321/oauth/callback?code=authorization-code&scope=daily&state=other",

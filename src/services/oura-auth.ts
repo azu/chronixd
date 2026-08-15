@@ -131,9 +131,12 @@ export const parseOuraAuthorizationRedirect = (
         const detail = redirect.searchParams.get("error_description");
         throw new Error(`Oura authorization failed: ${oauthError}${detail ? ` (${detail.slice(0, 200)})` : ""}`);
     }
-    const scopes = (redirect.searchParams.get("scope") ?? "").split(/\s+/).filter(Boolean);
-    if (!scopes.includes(OURA_SCOPE)) {
-        throw new Error(`Oura authorization did not grant the required '${OURA_SCOPE}' scope`);
+    const grantedScope = redirect.searchParams.get("scope");
+    if (grantedScope !== null) {
+        const scopes = grantedScope.split(/\s+/).filter(Boolean);
+        if (!scopes.includes(OURA_SCOPE)) {
+            throw new Error(`Oura authorization did not grant the required '${OURA_SCOPE}' scope`);
+        }
     }
     const code = redirect.searchParams.get("code");
     if (!isNonEmptyString(code)) {
