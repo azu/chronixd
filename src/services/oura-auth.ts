@@ -5,7 +5,6 @@ import type { AddressInfo } from "node:net";
 import { createLogger } from "../common/logger.js";
 import {
     type OnePasswordCommandRunner,
-    readOuraOnePasswordTokenState,
     writeOuraOnePasswordTokenState,
 } from "./oura-onepassword.js";
 import { OURA_AUTHORIZE_URL, OURA_TOKEN_URL, type OuraEnv } from "./oura.js";
@@ -380,14 +379,6 @@ export const authorizeOura = async (
     const runner = dependencies.onePasswordCommandRunner;
     try {
         await writeOuraOnePasswordTokenState(onePasswordConfig, tokenState, runner);
-        const stored = await readOuraOnePasswordTokenState(onePasswordConfig, runner);
-        if (
-            stored.accessToken !== tokenState.accessToken
-            || stored.refreshToken !== tokenState.refreshToken
-            || stored.expiresAt !== tokenState.expiresAt
-        ) {
-            throw new Error("1Password read-back did not match the new Oura token state");
-        }
     } catch (error) {
         const detail = redactSecrets((error as Error).message, [tokens.access_token, tokens.refresh_token]);
         throw new Error(`Oura issued new tokens, but chronixd could not store them safely; restart authorization (${detail})`);

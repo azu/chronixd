@@ -32,7 +32,7 @@ const createFakeRunner = () => {
         if (args[1] === "edit") {
             if (!standardInput) throw new Error("missing stdin");
             item = JSON.parse(standardInput);
-            return "";
+            return JSON.stringify(item);
         }
         throw new Error(`unexpected command: ${args.join(" ")}`);
     };
@@ -94,6 +94,14 @@ describe("Oura 1Password token store", () => {
 
         const edits = fake.calls.filter((call) => call.args[1] === "edit");
         expect(edits).toHaveLength(1);
+        expect(edits[0].args).toEqual([
+            "item",
+            "edit",
+            "oura-oauth",
+            "--vault",
+            "chronixd",
+            "--format=json",
+        ]);
         expect(edits[0].args.join(" ")).not.toContain("new-access-token");
         expect(edits[0].args.join(" ")).not.toContain("new-refresh-token");
         expect(edits[0].standardInput).toContain("new-access-token");
@@ -149,7 +157,7 @@ describe("Oura 1Password token store", () => {
                 editAttempts += 1;
                 if (editAttempts < 3) throw new Error("temporary write failure");
                 item = JSON.parse(standardInput);
-                return "";
+                return JSON.stringify(item);
             }
             throw new Error(`unexpected command: ${args.join(" ")}`);
         };

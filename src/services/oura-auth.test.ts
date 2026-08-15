@@ -31,17 +31,22 @@ const createTokenStore = (status = "uncertain:previous-attempt") => {
         ],
     };
     const edits: string[] = [];
+    let reads = 0;
     const runner: OnePasswordCommandRunner = async (args, standardInput) => {
-        if (args[1] === "get") return JSON.stringify(item);
+        if (args[1] === "get") {
+            reads += 1;
+            return JSON.stringify(item);
+        }
         if (args[1] === "edit" && standardInput) {
             edits.push(standardInput);
             item = JSON.parse(standardInput);
-            return "";
+            return JSON.stringify(item);
         }
         throw new Error(`unexpected command: ${args.join(" ")}`);
     };
     return {
         edits,
+        getReads: () => reads,
         getField: (label: string): unknown => item.fields.find((field) => field.label === label)?.value,
         runner,
     };
@@ -163,6 +168,7 @@ describe("Oura authorization", () => {
         expect(store.getField("refresh_token")).toBe("new-refresh-token");
         expect(store.getField("expires_at")).toBe("3601000");
         expect(store.getField("refresh_status")).toBe("ready");
+        expect(store.getReads()).toBe(1);
         expect(logs.join("\n")).not.toContain("new-access-token");
         expect(logs.join("\n")).not.toContain("new-refresh-token");
     });
