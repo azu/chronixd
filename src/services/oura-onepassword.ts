@@ -153,23 +153,21 @@ const editItem = async (
     config: OuraOnePasswordConfig,
     item: OnePasswordItem,
     runner: OnePasswordCommandRunner,
-): Promise<void> => {
+): Promise<OnePasswordItem> => {
     // The complete item is provided over stdin so rotated tokens never appear in
     // argv, shell history, or the process list.
-    await runner([
+    const text = await runner([
         "item",
         "edit",
         config.item,
         "--vault",
         config.vault,
+        "--format=json",
     ], JSON.stringify(item));
+    return parseItem(text);
 };
 
-export const readOuraOnePasswordTokenState = async (
-    config: OuraOnePasswordConfig,
-    runner: OnePasswordCommandRunner = runOnePasswordCommand,
-): Promise<OuraTokenState> => {
-    const item = await getItem(config, runner);
+const readTokenStateFromItem = (item: OnePasswordItem): OuraTokenState => {
     const status = getRequiredField(item, REFRESH_STATUS_FIELD);
     if (status !== READY_STATUS) {
         throw new Error(
@@ -193,6 +191,25 @@ export const readOuraOnePasswordTokenState = async (
     };
 };
 
+const itemMatchesTokenState = (item: OnePasswordItem, state: OuraTokenState): boolean => {
+    try {
+        const stored = readTokenStateFromItem(item);
+        return stored.accessToken === state.accessToken
+            && stored.refreshToken === state.refreshToken
+            && stored.expiresAt === state.expiresAt;
+    } catch {
+        return false;
+    }
+};
+
+export const readOuraOnePasswordTokenState = async (
+    config: OuraOnePasswordConfig,
+    runner: OnePasswordCommandRunner = runOnePasswordCommand,
+): Promise<OuraTokenState> => {
+    const item = await getItem(config, runner);
+    return readTokenStateFromItem(item);
+};
+
 export const markOuraOnePasswordRefreshUncertain = async (
     config: OuraOnePasswordConfig,
     runner: OnePasswordCommandRunner = runOnePasswordCommand,
@@ -209,7 +226,10 @@ export const markOuraOnePasswordRefreshUncertain = async (
     let lastError: unknown;
     for (let attempt = 0; attempt < MAX_WRITE_ATTEMPTS; attempt++) {
         try {
-            await editItem(config, item, runner);
+            const editedItem = await editItem(config, item, runner);
+            if (getRequiredField(editedItem, REFRESH_STATUS_FIELD) !== marker) {
+                throw new Error("1Password edit response did not confirm the Oura refresh marker");
+            }
             return;
         } catch (error) {
             lastError = error;
@@ -242,7 +262,10 @@ export const writeOuraOnePasswordTokenState = async (
     let lastError: unknown;
     for (let attempt = 0; attempt < MAX_WRITE_ATTEMPTS; attempt++) {
         try {
-            await editItem(config, item, runner);
+            const editedItem = await editItem(config, item, runner);
+            if (!itemMatchesTokenState(editedItem, state)) {
+                throw new Error("1Password edit response did not match the new Oura token state");
+            }
             return;
         } catch (error) {
             lastError = error;

@@ -103,7 +103,7 @@ const createOnePasswordStore = (options: TokenItemOptions = {}) => {
         if (args[1] === "get") return JSON.stringify(item);
         if (args[1] === "edit" && standardInput) {
             item = JSON.parse(standardInput);
-            return "";
+            return JSON.stringify(item);
         }
         throw new Error(`unexpected command: ${args.join(" ")}`);
     };
