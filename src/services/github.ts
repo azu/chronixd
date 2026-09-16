@@ -7,6 +7,46 @@ import { RetryAbleError } from "../common/RetryAbleError.js";
 import { RateLimitError } from "../common/RateLimitError.js";
 
 const logger = createLogger("GitHub");
+// Each pull creates its own client, so policy restrictions do not leak across
+// tokens or survive into the next run after permissions change.
+const forbiddenRepositories = new WeakMap<Octokit, Set<string>>();
+
+async function fetchEventDetails<T>(
+    octokit: Octokit,
+    repository: string,
+    description: string,
+    fallback: T,
+    fetchDetails: () => Promise<T>,
+): Promise<T> {
+    const repositoryKey = repository.toLowerCase();
+    if (forbiddenRepositories.get(octokit)?.has(repositoryKey)) return fallback;
+    try {
+        return await fetchDetails();
+    } catch (error) {
+        const response = error as {
+            status?: number;
+            response?: { headers?: Record<string, string | undefined> };
+        } | null;
+        const headers = response?.response?.headers;
+        if (response?.status === 429 || (response?.status === 403 && (
+            headers?.["x-ratelimit-remaining"] === "0" || headers?.["retry-after"] !== undefined
+        ))) {
+            throw new RateLimitError("Rate Limit Error on GitHub", { cause: error });
+        }
+        // A 403 does not identify a specific token policy. Skip only this repo
+        // for this pull, without relying on GitHub's human-readable message.
+        if (response?.status === 403) {
+            const repositories = forbiddenRepositories.get(octokit) ?? new Set<string>();
+            repositories.add(repositoryKey);
+            forbiddenRepositories.set(octokit, repositories);
+            logger.warn(`Skipping event details for ${repository}: GitHub returned HTTP 403. Events will still be saved.`);
+        } else {
+            logger.error(new Error(description, { cause: error }));
+        }
+        return fallback;
+    }
+}
+
 export type GitHubEnv = {
     github_token: string;
     github_username: string;
@@ -73,7 +113,7 @@ async function fetchCommitMessage(
     repo: string,
     sha: string
 ): Promise<string> {
-    try {
+    return fetchEventDetails(octokit, `${owner}/${repo}`, `Failed to fetch commit message for ${sha}`, "", async () => {
         const response = await octokit.rest.repos.getCommit({
             owner,
             repo,
@@ -83,10 +123,7 @@ async function fetchCommitMessage(
             }
         });
         return response.data.commit.message;
-    } catch (error) {
-        logger.error(new Error(`Failed to fetch commit message for ${sha}`, { cause: error }));
-        return "";
-    }
+    });
 }
 
 type PullRequestDetails = {
@@ -101,7 +138,7 @@ async function fetchPullRequestDetails(
     repo: string,
     pull_number: number
 ): Promise<PullRequestDetails | null> {
-    try {
+    return fetchEventDetails<PullRequestDetails | null>(octokit, `${owner}/${repo}`, `Failed to fetch PR #${pull_number}`, null, async () => {
         const response = await octokit.rest.pulls.get({
             owner,
             repo,
@@ -115,10 +152,7 @@ async function fetchPullRequestDetails(
             body: response.data.body,
             state: response.data.merged ? "merged" : response.data.state
         };
-    } catch (error) {
-        logger.error(new Error(`Failed to fetch PR #${pull_number}`, { cause: error }));
-        return null;
-    }
+    });
 }
 
 type IssueDetails = {
@@ -133,7 +167,7 @@ async function fetchIssueDetails(
     repo: string,
     issue_number: number
 ): Promise<IssueDetails | null> {
-    try {
+    return fetchEventDetails<IssueDetails | null>(octokit, `${owner}/${repo}`, `Failed to fetch issue #${issue_number}`, null, async () => {
         const response = await octokit.rest.issues.get({
             owner,
             repo,
@@ -147,10 +181,7 @@ async function fetchIssueDetails(
             body: response.data.body ?? null,
             state: response.data.state ?? "open"
         };
-    } catch (error) {
-        logger.error(new Error(`Failed to fetch issue #${issue_number}`, { cause: error }));
-        return null;
-    }
+    });
 }
 
 async function compileFormPushEvent(octokit: Octokit, event: Event): Promise<string> {
@@ -192,7 +223,7 @@ async function parseEventTitle(octokit: Octokit, event: Event): Promise<string> 
                 return `${details.title}`;
             }
         }
-        return `${issue.title}`;
+        return issue.title || `Issue #${issue.number} on ${repoFullName}`;
     } else { // @ts-expect-error
         if (event.payload.pull_request) {
             // @ts-expect-error
@@ -203,7 +234,7 @@ async function parseEventTitle(octokit: Octokit, event: Event): Promise<string> 
                     return `${details.title}`;
                 }
             }
-            return `${pr.title}`;
+            return pr.title || `Pull request #${pr.number} on ${repoFullName}`;
         } else {
             // @ts-expect-error
             const parsedEvent = parse(event);

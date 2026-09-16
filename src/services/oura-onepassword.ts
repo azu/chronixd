@@ -60,7 +60,13 @@ export const runOnePasswordCommand: OnePasswordCommandRunner = (args, standardIn
     return new Promise((resolve, reject) => {
         const inheritStderr = Boolean(process.stderr.isTTY)
             && !isNonEmptyString(process.env.OP_SERVICE_ACCOUNT_TOKEN);
-        const child = spawn("op", args, {
+        // Bun can connect child stdin with a socket. op does not auto-detect
+        // that as piped JSON, and Linux cannot reopen it via /dev/stdin.
+        // A shell pipeline supplies a real pipe without writing tokens to disk.
+        // Pass arguments positionally; never interpolate them into shell code.
+        const command = standardInput === undefined ? "op" : "/bin/sh";
+        const commandArgs = standardInput === undefined ? args : ["-c", 'cat | op "$@"', "chronixd-op", ...args];
+        const child = spawn(command, commandArgs, {
             env: process.env,
             // Keep stderr attached to the interactive terminal so 1Password's
             // desktop-app authentication can be presented to the user. CI and
@@ -79,6 +85,9 @@ export const runOnePasswordCommand: OnePasswordCommandRunner = (args, standardIn
 
         childStdout.on("data", (chunk: Buffer) => stdout.push(chunk));
         child.stderr?.on("data", (chunk: Buffer) => stderr.push(chunk));
+        childStdin.once("error", () => {
+            reject(new Error("Failed to write input to 1Password CLI"));
+        });
         child.once("error", (error) => {
             reject(new Error(`Failed to start 1Password CLI: ${error.message}`));
         });
@@ -167,10 +176,8 @@ const editItem = async (
     runner: OnePasswordCommandRunner,
 ): Promise<OnePasswordItem> => {
     // The complete item is provided over stdin so rotated tokens never appear in
-    // argv, shell history, or the process list. Bun connects child stdin with a
-    // socket on macOS, which `op item edit` does not auto-detect as piped input.
-    // Pointing the documented --template flag at /dev/stdin makes the input
-    // source explicit without writing the tokens to a temporary file.
+    // argv, shell history, or the process list. The runner supplies a real pipe
+    // so op recognizes its documented JSON stdin input on macOS and Linux.
     const text = await runner([
         "item",
         "edit",
@@ -178,7 +185,6 @@ const editItem = async (
         "--vault",
         config.vault,
         "--format=json",
-        "--template=/dev/stdin",
     ], `${JSON.stringify(item)}\n`);
     return parseItem(text);
 };
