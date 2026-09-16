@@ -101,7 +101,6 @@ describe("Oura 1Password token store", () => {
             "--vault",
             "chronixd",
             "--format=json",
-            "--template=/dev/stdin",
         ]);
         expect(edits[0].args.join(" ")).not.toContain("new-access-token");
         expect(edits[0].args.join(" ")).not.toContain("new-refresh-token");
